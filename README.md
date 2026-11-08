@@ -1,5 +1,7 @@
 # Diwali After Dark 🪔
 
+**Play live:** https://hi-ashutosh.github.io/diwali-after-dark/
+
 A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaScript. No database, build step, API keys, or npm dependencies.
 
 ## Play
@@ -22,9 +24,9 @@ Visit http://localhost:8080. No installation required.
 
 ## GitHub Pages
 
-1. Create a GitHub repository and push this directory to its `main` branch.
-2. In **Settings → Pages**, choose **Deploy from a branch**.
-3. Select **main**, **/ (root)**, then **Save**.
+Published from `main`, repository root, at https://hi-ashutosh.github.io/diwali-after-dark/. Push changes to `main` to redeploy automatically.
+
+Repository: https://github.com/hi-ashutosh/diwali-after-dark
 
 All local asset links are relative, so project subpaths work. `.nojekyll` disables Jekyll processing. No secrets or backend services are needed.
 
