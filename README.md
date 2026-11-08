@@ -7,7 +7,7 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 ## Play
 
 - **Patakha lab:** select Rocket, Anaar, Chakri, or Ladi and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
-- **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Each joke has an explicitly assigned reaction clip and a scene-specific caption; endings change between trips. Reactions are never randomly selected.
+- **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Each joke has a curated pool of fitting reaction clips and a scene-specific caption. Least-recently-used selection reduces repetition across games, and “Another take” cycles through the current scene’s fitting alternatives. Endings change between trips.
 - **The chhat gang:** click Sharma ji, Chintu, and Pooja for rooftop commentary. They sway, wave, film, and dance as fireworks launch. Milestone counts unlock society-committee complaints.
 - **Family WhatsApp:** choose your reply and face the consequences.
 - **Corporate bonus:** five escalating HR disappointments, with a Hera Pheri reaction GIF.
@@ -37,7 +37,7 @@ Aubergine, vermilion, antique gold, and sage; original CSS illustrations; a roof
 
 ## External content
 
-Reaction memes are short local MP4 clips containing their matching original audio. They play once per reveal, support replay and sound toggles, and stop when the card closes or the tab is hidden. Reduced-motion visitors opt into playback. Fonts retain system fallbacks, and failed videos display the reaction text.
+The reaction library contains 18 local MP4 clips, 16 with their original audio. Two TMKOC reactions are silent and clearly labeled. New clips are trimmed to six seconds or less. They play once per reveal, support replay and sound toggles, and stop when the card closes or the tab is hidden. Reduced-motion visitors opt into playback. Fonts retain system fallbacks, and failed videos display the reaction text.
 
 Clip sources (also credited beside each reaction):
 
@@ -45,6 +45,23 @@ Clip sources (also credited beside each reaction):
 - Yeh kya hai? / CarryMinati: https://templates.meme/templates/yeh-kya-hai — confusing gift labels, circular regifting, and fake gifts.
 - Paisa barbad / CarryMinati: https://templates.meme/templates/paisa-barbad — the ₹101 bonus requiring a ₹999 purchase.
 - Abhi maza ayega / Phir Hera Pheri: https://templates.meme/templates/abhi-maza-ayega-na-bhidu — finally opening the mithai with chai.
+
+Additional clips:
+
+- Bhide’s dramatic reunion · TMKOC: https://templates.meme/templates/bhide-crying
+- Gajab bejjati · Panchayat: https://templates.meme/templates/gajab-bejjati-hai-yaar
+- Kaisa laga mera mazak · The Kapil Sharma Show: https://templates.meme/templates/kaisa-laga-mera-mazak
+- Kuch samjhe Daya · CID: https://templates.meme/templates/kuch-samjhe-daya
+- Nahi main nahi maanta · Khatta Meetha: https://templates.meme/templates/nahi-main-nahi-maanta
+- Main nahi manta · Welcome: https://templates.meme/templates/nahi-main-nahi-manta
+- Aurat ka chakkar · Hera Pheri: https://templates.meme/templates/aurat-ka-chakkar
+- Are Deva! · Hera Pheri: https://templates.meme/templates/are-deva-yeh-toh-gadbad-hai-baba
+- Jaldi bol · Golmaal: https://templates.meme/templates/jaldi-bol-kal-subah-panvel-nikalna-hai
+- Practical nahi hai · Nayak: https://templates.meme/templates/sunne-mein-acha-hai
+- Kehna kya chahte ho · 3 Idiots: https://templates.meme/templates/kehna-kya-chahte-ho
+- Dil garden garden · Indian viral classic: https://templates.meme/templates/dil-garden-garden-ho-riya-hai
+- Jethalal’s shocked face · TMKOC: https://tenor.com/view/jethalal-jethalal-shocked-shocked-face-reaction-what-what-what-gif-19739068
+- Daya’s celebration · TMKOC: https://tenor.com/view/garba-daya-gif-26821643
 
 Rooftop characters are original inline SVG artwork. Firecracker sounds are synthesized; reaction dialogue comes from the local video clips.
 
@@ -55,4 +72,4 @@ No analytics, cookies, or user data storage.
 
 ## Regression checks
 
-With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and audio tracks in all four clips.
+With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and all 18 reaction assets, available audio tracks, and contextual rotation before repetition.

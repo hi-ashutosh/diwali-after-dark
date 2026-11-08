@@ -29,6 +29,8 @@ const start = source.indexOf('const reactions ='), end = source.indexOf('let pap
 vm.runInContext(source.slice(start, end) + '\nglobalThis.scenes = {reactions, papdiStops};', scenes);
 for (const stop of scenes.scenes.papdiStops) {
   assert(scenes.scenes.reactions[stop.reaction.meme], stop.name + ' needs a known, explicit reaction');
+  assert(stop.reaction.memes.length >= 3, stop.name + ' needs several contextual options');
+  for (const key of stop.reaction.memes) assert(scenes.scenes.reactions[key], 'Unknown contextual reaction: ' + key);
   assert(stop.reaction.caption.length > 20, stop.name + ' needs scene-specific context');
 }
 assert.equal(scenes.scenes.papdiStops.find(stop => stop.name === 'Bua ji').reaction.meme, 'control');
@@ -36,6 +38,11 @@ assert.equal(scenes.scenes.papdiStops.find(stop => stop.name === 'Gupta uncle').
 assert(!source.includes('reactionBag'), 'Reactions must not be selected from a random bag');
 for (const clip of Object.values(scenes.scenes.reactions)) {
   const data = fs.readFileSync(__dirname + '/' + clip.src);
-  assert(data.includes(Buffer.from('soun')), clip.src + ' must contain an audio track');
+  assert(data.includes(Buffer.from('ftyp')), clip.src + ' must be a real video');
+  if (clip.hasAudio !== false) assert(data.includes(Buffer.from('soun')), clip.src + ' must contain its advertised audio track');
 }
-console.log('Passed: elapsed-time animation, bounded/batched rendering, cached glows, explicit scene mapping, and four audio tracks.');
+console.log('Passed: elapsed-time animation, bounded/batched rendering, cached glows, explicit scene mapping, and 18 reaction assets with available audio.');
+
+assert.equal(Object.keys(scenes.scenes.reactions).length, 18);
+vm.runInContext("globalThis.rotation = Array.from({length:4}, () => chooseReaction(papdiStops[0].reaction));", scenes);
+assert.equal(new Set(scenes.rotation).size, 4, 'A scene must show each fitting option before repeating');

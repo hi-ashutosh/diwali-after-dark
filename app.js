@@ -279,34 +279,59 @@ const reactions = {
   control: {src: 'assets/control-uday.mp4', title: 'Control Uday · Welcome', href: 'https://templates.meme/templates/control-uday', line: 'Control, Uday. Control.'},
   confused: {src: 'assets/yeh-kya-hai.mp4', title: 'Yeh kya hai? · CarryMinati', href: 'https://templates.meme/templates/yeh-kya-hai', line: 'Yeh kya hai?!'},
   wasted: {src: 'assets/paisa-barbad.mp4', title: 'Paisa barbad · CarryMinati', href: 'https://templates.meme/templates/paisa-barbad', line: 'Toh paisa barbad!'},
-  fun: {src: 'assets/abhi-maza-ayega-na-bhidu.mp4', title: 'Abhi maza ayega · Phir Hera Pheri', href: 'https://templates.meme/templates/abhi-maza-ayega-na-bhidu', line: 'Abhi maza ayega na, bhidu!'}
+  fun: {src: 'assets/abhi-maza-ayega-na-bhidu.mp4', title: 'Abhi maza ayega · Phir Hera Pheri', href: 'https://templates.meme/templates/abhi-maza-ayega-na-bhidu', line: 'Abhi maza ayega na, bhidu!'},
+  bhide: {"src": "assets/bhide-crying.mp4", "title": "Bhide’s dramatic reunion · TMKOC", "href": "https://templates.meme/templates/bhide-crying", "line": "Dabba wapas aa gaya!", "hasAudio": true},
+  insult: {"src": "assets/gajab-bejjati-hai-yaar.mp4", "title": "Gajab bejjati · Panchayat", "href": "https://templates.meme/templates/gajab-bejjati-hai-yaar", "line": "Gajab bejjati hai yaar!", "hasAudio": true},
+  prank: {"src": "assets/kaisa-laga-mera-mazak.mp4", "title": "Kaisa laga mera mazak · The Kapil Sharma Show", "href": "https://templates.meme/templates/kaisa-laga-mera-mazak", "line": "Kaisa laga mera mazak?", "hasAudio": true},
+  detective: {"src": "assets/kuch-samjhe-daya.mp4", "title": "Kuch samjhe Daya · CID", "href": "https://templates.meme/templates/kuch-samjhe-daya", "line": "Kuch samjhe, Daya?", "hasAudio": true},
+  denial: {"src": "assets/nahi-main-nahi-maanta.mp4", "title": "Nahi main nahi maanta · Khatta Meetha", "href": "https://templates.meme/templates/nahi-main-nahi-maanta", "line": "Nahi, main nahi maanta.", "hasAudio": true},
+  disbelief: {"src": "assets/nahi-main-nahi-manta.mp4", "title": "Main nahi manta · Welcome", "href": "https://templates.meme/templates/nahi-main-nahi-manta", "line": "Nahi, main nahi manta!", "hasAudio": true},
+  relationship: {"src": "assets/aurat-ka-chakkar.mp4", "title": "Aurat ka chakkar · Hera Pheri", "href": "https://templates.meme/templates/aurat-ka-chakkar", "line": "Aurat ka chakkar, Babu bhaiya.", "hasAudio": true},
+  gadbad: {"src": "assets/are-deva-yeh-toh-gadbad-hai-baba.mp4", "title": "Are Deva! · Hera Pheri", "href": "https://templates.meme/templates/are-deva-yeh-toh-gadbad-hai-baba", "line": "Are Deva! Yeh toh gadbad hai!", "hasAudio": true},
+  panvel: {"src": "assets/jaldi-bol-kal-subah-panvel-nikalna-hai.mp4", "title": "Jaldi bol · Golmaal", "href": "https://templates.meme/templates/jaldi-bol-kal-subah-panvel-nikalna-hai", "line": "Jaldi bol, kal subah Panvel nikalna hai.", "hasAudio": true},
+  practical: {"src": "assets/sunne-mein-acha-hai.mp4", "title": "Practical nahi hai · Nayak", "href": "https://templates.meme/templates/sunne-mein-acha-hai", "line": "Sunne mein acha hai, lekin practical nahi hai.", "hasAudio": true},
+  explain: {"src": "assets/kehna-kya-chahte-ho.mp4", "title": "Kehna kya chahte ho · 3 Idiots", "href": "https://templates.meme/templates/kehna-kya-chahte-ho", "line": "Kehna kya chahte ho?", "hasAudio": true},
+  delight: {"src": "assets/dil-garden-garden-ho-riya-hai.mp4", "title": "Dil garden garden · Indian viral classic", "href": "https://templates.meme/templates/dil-garden-garden-ho-riya-hai", "line": "Dil garden garden ho riya hai!", "hasAudio": true},
+  jethalal: {"src": "assets/jethalal-shocked.mp4", "title": "Jethalal’s shocked face · TMKOC", "href": "https://tenor.com/view/jethalal-jethalal-shocked-shocked-face-reaction-what-what-what-gif-19739068", "line": "Yeh dabba phir aa gaya?!", "hasAudio": false},
+  garba: {"src": "assets/daya-garba.mp4", "title": "Daya’s celebration · TMKOC", "href": "https://tenor.com/view/garba-daya-gif-26821643", "line": "Ab toh garba banta hai!", "hasAudio": false}
 };
 function shuffled(list) {
   const copy = [...list];
   for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; }
   return copy;
 }
+// Every pool is curated for the scene. Least-recent use adds variety without changing its meaning.
+const reactionUse = new Map();
+let reactionTurn = 0;
+function reactionChoices(scene) { return scene.memes || [scene.meme]; }
+function chooseReaction(scene) {
+  const choices = reactionChoices(scene);
+  const key = choices.reduce((best, candidate) => (reactionUse.get(candidate) || 0) < (reactionUse.get(best) || 0) ? candidate : best);
+  reactionUse.set(key, ++reactionTurn); return key;
+}
 function stopReactions() { document.querySelectorAll('video.reaction').forEach(video => video.pause()); }
 function syncReactionAudio() {
-  document.querySelectorAll('video.reaction').forEach(video => { video.muted = !sound; video.volume = volume; });
+  document.querySelectorAll('video.reaction').forEach(video => { video.muted = !sound || video.dataset.silent === 'true'; video.volume = volume; });
   document.querySelectorAll('[data-reaction-sound]').forEach(button => {
     button.textContent = sound ? '♪ Sound on' : '♪ Sound off'; button.setAttribute('aria-pressed', sound);
   });
 }
 function reaction(scene, target = content) {
-  const meme = reactions[scene.meme];
+  const meme = reactions[chooseReaction(scene)];
   const figure = document.createElement('figure'); figure.className = 'reaction-frame';
   const caption = document.createElement('figcaption'); caption.className = 'reaction-context'; caption.textContent = scene.caption;
   const video = document.createElement('video'); video.src = meme.src; video.className = 'reaction';
   video.setAttribute('aria-label', meme.title); video.playsInline = true; video.preload = 'metadata';
-  video.muted = !sound; video.volume = volume;
+  video.dataset.silent = String(meme.hasAudio === false);
+  video.muted = !sound || meme.hasAudio === false; video.volume = volume;
   const fallback = document.createElement('div'); fallback.className = 'meme-fallback'; fallback.hidden = !reduced;
   const quote = document.createElement('b'); quote.textContent = meme.line; fallback.append(quote);
   video.hidden = reduced;
   const controls = document.createElement('div'); controls.className = 'reaction-controls';
   const replay = document.createElement('button'); replay.className = 'quiet-button'; replay.textContent = reduced ? '▶ Play reaction' : '↻ Replay reaction';
-  const mute = document.createElement('button'); mute.className = 'quiet-button'; mute.dataset.reactionSound = '';
-  mute.textContent = sound ? '♪ Sound on' : '♪ Sound off'; mute.setAttribute('aria-pressed', sound);
+  const mute = document.createElement('button'); mute.className = 'quiet-button';
+  if (meme.hasAudio !== false) mute.dataset.reactionSound = '';
+  mute.textContent = meme.hasAudio === false ? 'Silent reaction' : sound ? '♪ Sound on' : '♪ Sound off'; mute.setAttribute('aria-pressed', sound && meme.hasAudio !== false); mute.disabled = meme.hasAudio === false;
   const play = () => {
     video.hidden = false; fallback.hidden = true;
     video.currentTime = 0; video.play().catch(() => { replay.textContent = '▶ Play reaction'; });
@@ -316,23 +341,25 @@ function reaction(scene, target = content) {
   video.onerror = () => { video.hidden = true; fallback.hidden = false; replay.disabled = true; mute.disabled = true; };
   const link = document.createElement('a'); link.href = meme.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
   link.className = 'credit'; link.textContent = `${meme.title} · source ↗`;
-  controls.append(replay, mute); figure.append(caption, video, fallback, controls, link); target.append(figure);
+  const another = document.createElement('button'); another.className = 'quiet-button'; another.textContent = 'Another take ↻'; another.disabled = reactionChoices(scene).length < 2;
+  another.onclick = () => { stopReactions(); figure.remove(); reaction(scene, target); target.querySelector('.reaction-controls button:nth-child(2)')?.focus(); };
+  controls.append(replay, another, mute); figure.append(caption, video, fallback, controls, link); target.append(figure);
   // One playback per reveal; dialogue never loops or continues after the card closes.
   if (!reduced) play();
 }
 const papdiStops = [
-  {name: 'Sharma aunty', joke: '“Arre, iski kya zaroorat thi?” Gift bag ka handle pakad ke aunty ne kaha.', reaction: {"meme": "control", "caption": "Trying to keep a straight face as aunty plans to regift your gift."}},
-  {name: 'Gupta uncle', joke: 'Uncle ne upar “premium dry fruits” ka sticker chipka diya. Rebranding ka budget: ₹0.', reaction: {"meme": "confused", "caption": "That premium dry-fruit sticker is covering a soan-papdi label."}},
-  {name: 'Your manager', joke: 'Dabba is now a “festive performance incentive”. Your promotion is still in review.', reaction: {"meme": "control", "caption": "When your manager calls a regifted dabba a performance incentive."}},
-  {name: 'Society secretary', joke: 'Maintenance ke paise full. Mithai society ke WhatsApp group se crowdsourced.', reaction: {"meme": "control", "caption": "Paying full maintenance, then funding the society mithai too."}},
-  {name: 'Your cousin', joke: 'Cousin ne gift tag badla. Instagram story mein “small wins, big blessings” daala.', reaction: {"meme": "confused", "caption": "A new Instagram story and a gift tag do not make this a new gift."}},
-  {name: 'Bua ji', joke: 'Dabba accept karne se pehle bua ne kundli maangi. Soan papdi ki nahi. Tumhari.', reaction: {"meme": "control", "caption": "When giving bua mithai somehow starts a marriage interview."}},
-  {name: 'Chai-wale bhaiya', joke: 'Bhaiya ne bola “khata clear karo pehle”. Dabba bhi udhaar mein accept nahi hua.', reaction: {"meme": "control", "caption": "Chai-wale bhaiya is waiting for payment. You brought soan papdi."}},
-  {name: 'NRI maasi', joke: '“Is this gluten-free?” Maasi has now taken the dabba through two international airports.', reaction: {"meme": "confused", "caption": "When a local dabba has a better international travel history than you."}},
-  {name: 'Gym bro', joke: '“Protein kitna hai?” He logs one bite as a cheat meal, regifts the remaining 499 grams.', reaction: {"meme": "confused", "caption": "Watching gym bro calculate macros for a regifted dabba."}},
-  {name: 'The tuition sir', joke: 'Sir ne iske bhi 3 marks kaat diye. Steps nahi likhe the gift note pe.', reaction: {"meme": "control", "caption": "Tuition sir is grading the gift note. Even on Diwali."}},
-  {name: 'Building ke kids', joke: 'Chocolate nahi nikli. Entire unboxing committee has unanimously rejected the product.', reaction: {"meme": "control", "caption": "The kids were promised chocolate. The dabba was not chocolate."}},
-  {name: 'Your office bestie', joke: '“Mere ghar mat lana,” bestie said. Then left the exact same dabba on your desk.', reaction: {"meme": "confused", "caption": "Your bestie banned the dabba, then secretly put it on your desk."}},
+  {name: 'Sharma aunty', joke: '“Arre, iski kya zaroorat thi?” Gift bag ka handle pakad ke aunty ne kaha.', reaction: {"meme": "control", "memes": ["denial", "jethalal", "control", "disbelief"], "caption": "Trying to keep a straight face as aunty plans to regift your gift."}},
+  {name: 'Gupta uncle', joke: 'Uncle ne upar “premium dry fruits” ka sticker chipka diya. Rebranding ka budget: ₹0.', reaction: {"meme": "confused", "memes": ["detective", "jethalal", "gadbad", "confused"], "caption": "That premium dry-fruit sticker is covering a soan-papdi label."}},
+  {name: 'Your manager', joke: 'Dabba is now a “festive performance incentive”. Your promotion is still in review.', reaction: {"meme": "control", "memes": ["insult", "practical", "prank", "control"], "caption": "When your manager calls a regifted dabba a performance incentive."}},
+  {name: 'Society secretary', joke: 'Maintenance ke paise full. Mithai society ke WhatsApp group se crowdsourced.', reaction: {"meme": "control", "memes": ["bhide", "practical", "control", "insult"], "caption": "Paying full maintenance, then funding the society mithai too."}},
+  {name: 'Your cousin', joke: 'Cousin ne gift tag badla. Instagram story mein “small wins, big blessings” daala.', reaction: {"meme": "confused", "memes": ["detective", "prank", "disbelief", "gadbad"], "caption": "A new Instagram story and a gift tag do not make this a new gift."}},
+  {name: 'Bua ji', joke: 'Dabba accept karne se pehle bua ne kundli maangi. Soan papdi ki nahi. Tumhari.', reaction: {"meme": "control", "memes": ["relationship", "panvel", "control", "explain"], "caption": "When giving bua mithai somehow starts a marriage interview."}},
+  {name: 'Chai-wale bhaiya', joke: 'Bhaiya ne bola “khata clear karo pehle”. Dabba bhi udhaar mein accept nahi hua.', reaction: {"meme": "control", "memes": ["denial", "explain", "practical", "control"], "caption": "Chai-wale bhaiya is waiting for payment. You brought soan papdi."}},
+  {name: 'NRI maasi', joke: '“Is this gluten-free?” Maasi has now taken the dabba through two international airports.', reaction: {"meme": "confused", "memes": ["jethalal", "explain", "confused", "detective"], "caption": "When a local dabba has a better international travel history than you."}},
+  {name: 'Gym bro', joke: '“Protein kitna hai?” He logs one bite as a cheat meal, regifts the remaining 499 grams.', reaction: {"meme": "confused", "memes": ["explain", "denial", "practical", "confused"], "caption": "Watching gym bro calculate macros for a regifted dabba."}},
+  {name: 'The tuition sir', joke: 'Sir ne iske bhi 3 marks kaat diye. Steps nahi likhe the gift note pe.', reaction: {"meme": "control", "memes": ["insult", "explain", "control", "denial"], "caption": "Tuition sir is grading the gift note. Even on Diwali."}},
+  {name: 'Building ke kids', joke: 'Chocolate nahi nikli. Entire unboxing committee has unanimously rejected the product.', reaction: {"meme": "control", "memes": ["disbelief", "denial", "jethalal", "control"], "caption": "The kids were promised chocolate. The dabba was not chocolate."}},
+  {name: 'Your office bestie', joke: '“Mere ghar mat lana,” bestie said. Then left the exact same dabba on your desk.', reaction: {"meme": "confused", "memes": ["gadbad", "prank", "detective", "jethalal"], "caption": "Your bestie banned the dabba, then secretly put it on your desk."}},
 ];
 let papdiRoute = [], previousFirst = '', papdiTrip = 0;
 function resetPapdi() {
@@ -349,7 +376,7 @@ function papdi(step) {
   const joke = step === 0 ? 'Naya route. Naye suspects. Wahi suspicious dabba. Is baar kiske ghar jayega?'
     : end ? 'Your own gift tag is still underneath. Dabba ne tumse zyada Diwali parties attend kar li.' : papdiRoute[step - 1].joke;
   content.innerHTML = `<div class="eyebrow">SOAN PAPDI MULTIVERSE · TRIP ${papdiTrip}</div><h2>${end ? 'Ghar wapsi ho gayi.' : step ? `${papdiRoute[step - 1].name} has the dabba.` : 'Same dabba. New drama.'}</h2><div class="route">${trail.join(' → ')}</div><p>${joke}</p><div id="papdi-reaction"></div><div class="game-actions"><button class="primary" id="pass">${end ? 'Break the cycle. Eat it.' : 'Regift. Obviously.'} ↗</button><button class="quiet-button" id="reset-route">Shuffle the route ↻</button></div>`;
-  if (step) reaction(end ? {meme: 'confused', caption: 'The dabba you gave away comes back with your own gift tag still on it.'} : papdiRoute[step - 1].reaction, $('#papdi-reaction'));
+  if (step) reaction(end ? {meme: 'confused', memes: ['bhide', 'jethalal', 'gadbad', 'detective', 'disbelief'], caption: 'The dabba you gave away comes back with your own gift tag still on it.'} : papdiRoute[step - 1].reaction, $('#papdi-reaction'));
   $('#reset-route').onclick = () => { resetPapdi(); $('#pass').focus(); };
   $('#pass').onclick = () => {
     if (!end) { papdi(step + 1); $('#pass').focus(); }
@@ -361,7 +388,7 @@ function papdi(step) {
         'You put it next to the chai. Five minutes later: empty dabba. Everyone blames the cousin who went to the gym.'
       ];
       content.innerHTML = `<span class="big-icon">🏆</span><h2>The cycle is broken.</h2><p>${endings[(papdiTrip - 1) % endings.length]}</p><button class="primary" id="again">Start another questionable journey ↗</button>`;
-      reaction((papdiTrip - 1) % 3 === 1 ? {meme: 'control', caption: 'You admit you like soan papdi. Your family sends seven more boxes.'} : {meme: 'fun', caption: 'You finally stop regifting and bring the mithai to the chai table.'}); $('#again').onclick = () => { resetPapdi(); $('#pass').focus(); }; $('#again').focus();
+      reaction((papdiTrip - 1) % 3 === 1 ? {meme: 'control', memes: ['gadbad', 'jethalal', 'control', 'disbelief'], caption: 'You admit you like soan papdi. Your family sends seven more boxes.'} : {meme: 'fun', memes: ['garba', 'delight', 'fun'], caption: 'You finally stop regifting and bring the mithai to the chai table.'}); $('#again').onclick = () => { resetPapdi(); $('#pass').focus(); }; $('#again').focus();
     }
   };
 }
@@ -372,11 +399,11 @@ function bonus() {
   content.innerHTML = '<div class="eyebrow">A PERSONAL MESSAGE FROM HR</div><span class="big-icon">✉️</span><h2>Your hard work<br>has been noticed.</h2><p>“Dear valued resource, we have gone above and beyond to curate your festive happiness.”</p><button class="primary" id="unbox">Open the hamper <span>↗</span></button>';
   $('#unbox').onclick = () => {
     const prizes = [
-      ['₹ 0', 'A heartfelt email.', '“Your contribution is priceless. So we haven’t put a price on it.”', {meme: 'control', caption: 'Trying to stay professional after an email is announced as your bonus.'}],
-      ['1 DABBA', 'The legacy bonus.', 'Soan papdi. An air fryer was discussed. A suitcase was shortlisted. Then Finance joined the call.', {meme: 'control', caption: 'Your face when the promised appliance becomes another soan-papdi dabba.'}],
-      ['₹ 101', 'Shagun, with conditions.', '₹1 for good luck. ₹100 redeemable at the office cafeteria. Minimum spend ₹999.', {meme: 'wasted', caption: 'When using your ₹101 bonus requires spending ₹999 first.'}],
-      ['1 DAY', 'A surprise holiday!', 'It’s Sunday. HR says you’re welcome.', {meme: 'confused', caption: 'When HR gives you the Sunday you already had off.'}],
-      ['AIR FRYER!', 'The plot twist nobody expected.', 'A picture of an air fryer. In the company newsletter. Please like and reshare.', {meme: 'confused', caption: 'Opening your air fryer gift and finding a JPEG attachment.'}]
+      ['₹ 0', 'A heartfelt email.', '“Your contribution is priceless. So we haven’t put a price on it.”', {meme: 'control', memes: ['insult', 'bhide', 'control', 'practical'], caption: 'Trying to stay professional after an email is announced as your bonus.'}],
+      ['1 DABBA', 'The legacy bonus.', 'Soan papdi. An air fryer was discussed. A suitcase was shortlisted. Then Finance joined the call.', {meme: 'control', memes: ['denial', 'jethalal', 'disbelief', 'control'], caption: 'Your face when the promised appliance becomes another soan-papdi dabba.'}],
+      ['₹ 101', 'Shagun, with conditions.', '₹1 for good luck. ₹100 redeemable at the office cafeteria. Minimum spend ₹999.', {meme: 'wasted', memes: ['wasted', 'practical', 'insult', 'gadbad'], caption: 'When using your ₹101 bonus requires spending ₹999 first.'}],
+      ['1 DAY', 'A surprise holiday!', 'It’s Sunday. HR says you’re welcome.', {meme: 'confused', memes: ['prank', 'insult', 'denial', 'confused'], caption: 'When HR gives you the Sunday you already had off.'}],
+      ['AIR FRYER!', 'The plot twist nobody expected.', 'A picture of an air fryer. In the company newsletter. Please like and reshare.', {meme: 'confused', memes: ['prank', 'jethalal', 'gadbad', 'disbelief', 'confused'], caption: 'Opening your air fryer gift and finding a JPEG attachment.'}]
     ];
     const p = prizes[bonusRoll++ % prizes.length];
     content.innerHTML = `<div class="eyebrow">YOUR FESTIVE APPRAISAL IS HERE</div><div class="bonus-amount">${p[0]}</div><h2>${p[1]}</h2><p>${p[2]}</p><button class="primary" id="reroll">Try another company ↗</button>`;
