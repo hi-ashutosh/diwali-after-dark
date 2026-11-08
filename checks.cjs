@@ -57,24 +57,48 @@ vm.runInContext(playground.slice(arcStart, arcEnd) + `
 assert.equal(arcContext.arc[0].x, 10); assert.equal(arcContext.arc[2].x, 510);
 assert(Math.abs(arcContext.arc[1].x - 260) < .001 && arcContext.arc[1].y < 110, 'Thrown patakhas must follow an elevated arc to their target');
 const html = fs.readFileSync(__dirname + '/index.html', 'utf8');
-assert.equal((html.match(/class="cracker(?: active)?"/g) || []).length, 11, 'The playground must offer eleven firecrackers');
-console.log('Passed: eleven firecracker controls, and cartoon throw trajectory.');
+assert.equal((html.match(/class="cracker(?: active)?"/g) || []).length, 4, 'The playground must offer four focused firecrackers');
+console.log('Passed: four focused firecracker controls, and cartoon throw trajectory.');
 
 const soundMap = source.match(/const samples = (\{[^}]+\})/);
 assert(soundMap, 'Recorded firecracker sounds must be declared in one map');
 const sampleFiles = vm.runInNewContext('(' + soundMap[1] + ')');
-for (const type of ['rocket', 'anaar', 'phuljhadi', 'ladi', 'bomb', 'greenbomb']) {
+for (const type of ['rocket', 'ladi', 'greenbomb']) {
   assert(sampleFiles[type], type + ' needs a recorded sound');
   const data = fs.readFileSync(__dirname + '/' + sampleFiles[type]);
   assert(data.subarray(0, 3).equals(Buffer.from('ID3')) || (data[0] === 0xff && (data[1] & 0xe0) === 0xe0), sampleFiles[type] + ' must be a real MP3');
 }
-assert(fs.readFileSync(__dirname + '/index.html', 'utf8').includes('data-type="bomb"'), 'The tray needs a Bomb button');
+assert(fs.readFileSync(__dirname + '/index.html', 'utf8').includes('data-type="greenbomb"'), 'The tray needs its focused Green bomb button');
 
 
 assert(source.includes('source.start(audio.currentTime);'), 'Recordings must start without being cut to synthetic effect durations');
-console.log('Passed: recorded rocket, fountain, phuljhadi, ladi and Bomb sound assets.');
+console.log('Passed: recorded Rocket, Ladi and Green bomb audio assets.');
 
 assert(fs.readFileSync(__dirname + '/assets/sounds/bhide-reaction.m4a').includes(Buffer.from('ftyp')), 'The TMKOC punchline needs a real audio asset');
 
 vm.runInContext(`rockets.push({x:100,y:h-42,ground:h-42,target:50,born:92,flight:ROCKET_BURST*1000});animate(592);globalThis.rocketY=rockets[0].y;`, context);
 assert(Number.isFinite(context.rocketY) && context.rocketY > 50 && context.rocketY < 318, 'Recorded rocket choreography must remain finite and rise toward its target');
+
+const voiceStart = playground.indexOf('const crackerVoices ='), voiceEnd = playground.indexOf('const crackerVoicePlayer',voiceStart);
+const voiceConfig = vm.runInNewContext(playground.slice(voiceStart,voiceEnd)+';crackerVoices');
+assert.deepEqual(Object.keys(voiceConfig).sort(), ['chakri','greenbomb','ladi','rocket']);
+assert.equal(new Set(Object.values(voiceConfig).map(v=>v.src)).size, 4, 'Each cracker needs a distinct TMKOC reaction');
+for (const voice of Object.values(voiceConfig)) assert(fs.statSync(__dirname+'/'+voice.src).size > 1000, 'Every fixed TMKOC voice must have a local audio file');
+assert(voiceConfig.ladi.caption.includes('chup re') && voiceConfig.greenbomb.caption.includes('Mataji'), 'The noisy ladi and big bomb must retain their matched reactions');
+console.log('Passed: all four active crackers have unique, fixed, local TMKOC punchlines.');
+
+const voiceNodes = new Map(), voiceTasks = [], fakePlayers = [];
+const voiceRuntime = vm.createContext({
+  Audio: class {constructor(){this.playCount=0;fakePlayers.push(this);} play(){this.playCount++;return Promise.resolve();} pause(){this.paused=true;}},
+  $: key => {if(!voiceNodes.has(key))voiceNodes.set(key,{});return voiceNodes.get(key);},
+  sound:true, volume:.45, timers:new Set(), clearTimeout(){},setSound(){},
+  later: (fn,ms)=>{voiceTasks.push({fn,ms});return voiceTasks.length;}
+});
+vm.runInContext(playground.slice(voiceStart)+";queueCrackerVoice('ladi');queueCrackerVoice('greenbomb');", voiceRuntime);
+voiceTasks.sort((a,b)=>a.ms-b.ms).forEach(task=>task.fn());
+assert.equal(fakePlayers[0].playCount,1,'TMKOC voices must not overlap when crackers are clicked rapidly');
+assert(fakePlayers[0].src.includes('babuchak-chup-re'));
+fakePlayers[0].onended();
+assert.equal(fakePlayers[0].playCount,2);assert(fakePlayers[0].src.includes('hey-ma-mataji'));
+vm.runInContext('stopCrackerVoice()',voiceRuntime);assert(fakePlayers[0].paused,'Mute and clear must stop the funny audio');
+console.log('Passed: matched dialogue queues without overlap and stops on clear/mute.');

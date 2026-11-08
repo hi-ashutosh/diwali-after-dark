@@ -6,9 +6,9 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 
 ## Play
 
-- **Patakha lab:** choose from eleven effects: Rocket, Anaar, Chakri, Ladi, Phuljhadi, Bomb, Green bomb, Sky shots, Confetti, Flying UFO, and Dilwale hearts. Tap the sky to launch; drag a Phuljhadi to paint with sparks. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in. Dharmik’s recordings in `assets/sounds/` play in full for Rocket, Anaar/Phuljhadi, Ladi, and Bomb. Rocket flight and its crackle tail follow the recorded launch/bang timing, fountains and ladi match their two-second clips, and Bomb has two timed blasts with flashes and a small shake. Other effects retain synthesized sound. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
+- **Patakha lab:** four focused options — Rocket, Chakri, Ladi, and Green bomb. Each keeps its physical bang/whistle/fizz and has one fixed TMKOC reaction, timed after its effect. Rocket’s burst gets Bhide’s panic, Chakri’s spinning chaos gets “Nonsense,” Ladi’s nonstop noise gets “Babuchak, chup re,” and Green bomb’s two blasts get Daya’s “Hey Maa Mataji.” The pairing is displayed on the button and below the tray. Replay punchline is available; short voice reactions queue without overlapping. Mute, Clear sky, side quests, and backgrounding cancel pending dialogue. Dharmik’s original recordings remain for Rocket, Ladi, and Green bomb; Chakri keeps its synthesized spin.
 - **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Each joke has a curated pool of fitting reaction clips and a scene-specific caption. Least-recently-used selection reduces repetition across games, and “Another take” cycles through the current scene’s fitting alternatives. Endings change between trips.
-- **Chhat fights:** choose Chintu, Sharma ji, or Pooja as your thrower, select a patakha, and tap a rooftop rival. Cartoon packets follow an arc; characters jump, complain, and optionally throw confetti back once. This is a solo browser game with NPC characters. The counter tracks successful pranks.
+- **Chhat fights:** choose Chintu, Sharma ji, or Pooja as your thrower, select a patakha, and tap a rooftop rival. Cartoon packets follow an arc; characters jump, complain, and optionally throw a chakri back once. This is a solo browser game with NPC characters. The counter tracks successful pranks.
 - **Big screen / Surprise me / Breeze:** expand the arena, launch a random effect, or let the wind bend your sparks. Escape exits big-screen mode.
 - **The chhat gang:** click Sharma ji, Chintu, and Pooja for rooftop commentary. They sway, wave, film, and dance as fireworks launch. Milestone counts unlock society-committee complaints.
 - **Family WhatsApp:** choose your reply and face the consequences.
@@ -74,8 +74,17 @@ No analytics, cookies, or user data storage.
 
 ## Regression checks
 
-With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and all 18 reaction assets, available audio tracks, contextual rotation, eleven firecracker controls, throw trajectories, and bounded return-fire logic.
+With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and all 18 reaction assets, available audio tracks, contextual rotation, four focused firecracker controls, throw trajectories, and bounded return-fire logic.
 
 Recorded firecracker audio and Bomb choreography adapted from Dharmik’s commits `87ef472` and `9669cad`, retaining the expanded arena and cartoon toss mode.
 
-Green bomb combines the recorded double bang with bass reinforcement, larger shockwave rings and a short Bhide/TMKOC reaction sting extracted from the existing credited clip. Bomb artwork is original inline SVG. Blast effects preserve reduced-motion support and the particle budget.
+Green bomb combines the recorded double bang with bass reinforcement, larger shockwave rings and Daya’s “Hey Maa Mataji” reaction after its two bangs. Bomb artwork is original inline SVG. Blast effects preserve reduced-motion support and the particle budget.
+
+## Fixed TMKOC firecracker audio
+
+- Rocket → Bhide’s panicked reaction to a burst: https://templates.meme/templates/bhide-crying
+- Chakri → Jetha Nonsense: https://www.voicy.network/sounds/XHcruaKeSk__6B55fQnDqQ-jetha-nonsense
+- Ladi → Babuchak Chup re: https://www.voicy.network/sounds/1V9zV295Vkyey32Du_vq-A-babuchak-chup-re
+- Green bomb → Hey Ma Mataji: https://www.voicy.network/sounds/JLIVv7szYU_HATFNCklWGw-hey-ma-mataji
+
+The three short Voicy uploads are credited to Chilas; dialogue comes from TMKOC. Each pairing is intentional, without random funny-audio selection. Extra effects from the earlier larger tray are no longer exposed. Existing audio assets are retained for collaborator work.

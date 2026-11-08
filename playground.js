@@ -1,56 +1,11 @@
 'use strict';
 let playMode = 'sky', thrower = 'launcher', prankCount = 0, paintingAt = 0;
 const people = {uncle: 'Sharma ji', launcher: 'Chintu', dancer: 'Pooja'};
-const crackerNames = {rocket: 'Rocket', anaar: 'Anaar', chakri: 'Chakri', ladi: 'Ladi', phuljhadi: 'Phuljhadi', bomb: 'Bomb', greenbomb: 'Green bomb', skyshots: 'Sky shots', confetti: 'Confetti', ufo: 'Flying UFO', dilwale: 'Dilwale'};
+const crackerNames = {rocket: 'Rocket', chakri: 'Chakri', ladi: 'Ladi', greenbomb: 'Green bomb'};
+
 function roofSay(line) {
   $('#roof-comment').textContent = line; $('#roof-comment').classList.add('visible');
   clearTimeout(neighbourTimer); neighbourTimer = setTimeout(() => $('#roof-comment').classList.remove('visible'), 2600);
-}
-function sparkle(x, y) {
-  for (let i = 0; i < (reduced ? 5 : 18); i++) {
-    const a = Math.random() * Math.PI * 2, v = .6 + Math.random() * 2.3;
-    add(x, y, Math.cos(a) * v, Math.sin(a) * v, i % 3 ? '#ffd17e' : '#fff8d7', 25 + Math.random() * 25, 1.5, .045);
-  }
-}
-function extraFirecracker(type, x, y) {
-  const floor = h - 44;
-  if (type === 'phuljhadi') {
-    soundEffect('phuljhadi', x); sparkle(x, y);
-    for (let i = 1; i < Math.round(FOUNTAIN_LENGTH * 1000 / 70); i++) later(() => sparkle(x + (Math.random() - .5) * 8, y), i * 70);
-  } else if (type === 'skyshots') {
-    soundEffect('rocket', x);
-    for (let k = 0; k < 5; k++) later(() => {
-      const sx = Math.max(20, Math.min(w - 20, x + (k - 2) * 48));
-      rockets.push({x: sx, y: floor, ground: floor, target: Math.max(35, y - (k % 2) * 45), born: performance.now(), flight: ROCKET_BURST * 1000});
-    }, k * 110);
-  } else if (type === 'confetti') {
-    soundEffect('pop', x);
-    for (let k = 0; k < (reduced ? 25 : 100); k++) {
-      const a = -Math.PI / 2 + (Math.random() - .5) * 1.8;
-      const speed = 2 + Math.random() * 5;
-      add(x, y, Math.cos(a) * speed, Math.sin(a) * speed, colors[k % colors.length], 80 + Math.random() * 50, 3 + Math.random() * 2, .065, {drag: .994, confetti: true});
-    }
-  } else if (type === 'ufo') {
-    soundEffect('rocket', x);
-    for (let k = 0; k < 35; k++) later(() => {
-      const cx = x + Math.sin(k * .18) * Math.min(w * .18, 110), cy = floor - k * 5;
-      for (let j = 0; j < (reduced ? 2 : 6); j++) {
-        const a = k * .7 + j;
-        add(cx, cy, Math.cos(a) * 2, Math.sin(a) * .65, j % 2 ? '#9fd9b1' : '#c99bf0', 35, 1.8, .02);
-      }
-    }, k * 24);
-  } else if (type === 'dilwale') {
-    soundEffect('boom', x);
-    const total = reduced ? 24 : 75;
-    for (let k = 0; k < total; k++) {
-      const a = k / total * Math.PI * 2;
-      const vx = 16 * Math.sin(a) ** 3 * .22;
-      const vy = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) * .22;
-      add(x, y, vx, vy, '#ef7dac', 90, 2, .013, {drag: .99});
-    }
-    roofSay('Pyaar ka rocket. Rishta bua ji bhejengi.');
-  } else return false;
-  return true;
 }
 function personPosition(id) {
   const box = document.querySelector('.roof-person.' + id).getBoundingClientRect();
@@ -77,14 +32,14 @@ function updateTosses(time) {
     const from = {x: shot.fromRatio * w, y: h - 53}, to = {x: shot.toRatio * w, y: h - 53};
     const pos = tossPoint(from, to, t, Math.min(h * .4, Math.abs(to.x - from.x) * .35 + 60));
     if (t >= 1) {
-      projectiles.splice(i, 1); const landing = personPosition(shot.targetId); launch(landing.x, Math.max(50, landing.y - 35), shot.type);
+      projectiles.splice(i, 1); const landing = personPosition(shot.targetId); launch(landing.x, Math.max(50, landing.y - 35), shot.type, !shot.reply);
       const target = document.querySelector('.roof-person.' + shot.targetId);
       target.classList.add('is-hit'); later(() => target.classList.remove('is-hit'), 650);
       if (!shot.reply) { prankCount++; $('#fight-score').textContent = `${prankCount} successful prank${prankCount === 1 ? '' : 's'}`; }
       const retorts = {uncle: 'Secretary ko phone lagao! Yeh maintenance mein included nahi tha!', launcher: 'Bhai! Camera toh on hone deta!', dancer: 'Mere dupatte ko confetti samjha hai kya?'};
       roofSay(`${people[shot.targetId]}: ${retorts[shot.targetId]}`);
       if (!shot.reply && $('#return-fire').checked && playMode === 'fight') later(() => {
-        if (playMode === 'fight') tossAt(shot.targetId, shot.fromId, true, 'confetti');
+        if (playMode === 'fight') tossAt(shot.targetId, shot.fromId, true, 'chakri');
       }, 1000);
       continue;
     }
@@ -105,9 +60,9 @@ function setPlayMode(mode) {
   for (const [id, value] of [['sky-mode', 'sky'], ['fight-mode', 'fight']]) {
     $('#' + id).classList.toggle('chosen', value === mode); $('#' + id).setAttribute('aria-pressed', value === mode);
   }
-  $('#play-instruction').textContent = mode === 'fight' ? 'CHOOSE YOUR THROWER + PATAKHA, THEN TAP ANOTHER CHARACTER' : 'PICK A PATAKHA, THEN TAP THE SKY · PHULJHADI: DRAG TO DRAW';
+  $('#play-instruction').textContent = mode === 'fight' ? 'CHOOSE YOUR THROWER + PATAKHA, THEN TAP ANOTHER CHARACTER' : 'PICK A PATAKHA, THEN TAP THE SKY · SOUND ON FOR THE TMKOC REACTION';
   $('#sky-caption').querySelector('strong').innerHTML = mode === 'fight' ? 'Dosti apni jagah.<br>Badla apni jagah.' : 'Badi chhat.<br>Bade kaand.';
-  $('#sky-caption').querySelector('p').textContent = mode === 'fight' ? 'Tap a rooftop rival. They might return the favour.' : 'Tap the sky to launch. Drag a phuljhadi to draw.';
+  $('#sky-caption').querySelector('p').textContent = mode === 'fight' ? 'Tap a rooftop rival. They might return the favour.' : 'Pick a patakha. Every effect has its own TMKOC punchline.';
   updateThrower();
 }
 function updateThrower() {
@@ -147,10 +102,6 @@ function bigScreen(enabled) {
 }
 $('#big-screen').onclick = () => bigScreen(!$('#playground').classList.contains('theatre-mode'));
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#playground').classList.contains('theatre-mode')) { bigScreen(false); $('#big-screen').focus(); } });
-canvas.addEventListener('pointermove', e => {
-  if (!e.buttons || selected !== 'phuljhadi' || playMode !== 'sky' || performance.now() - paintingAt < 30) return;
-  paintingAt = performance.now(); const rect = canvas.getBoundingClientRect(); sparkle(e.clientX - rect.left, e.clientY - rect.top);
-});
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Tab' || !$('#playground').classList.contains('theatre-mode')) return;
@@ -159,3 +110,50 @@ document.addEventListener('keydown', e => {
   if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
+
+// One fixed, scene-matched TMKOC reaction per cracker. No random dialogue selection.
+const crackerVoices = {
+  rocket: {src:'assets/sounds/bhide-panic.m4a', title:'Bhide panics at the rocket burst', caption:'Rocket ka blast → Bhide ka meltdown', delay:3820, href:'https://templates.meme/templates/bhide-crying'},
+  chakri: {src:'assets/sounds/jetha-nonsense.mp3', title:'Jethalal: Nonsense!', caption:'Chakri idhar-udhar ghoome → Jethalal: “Nonsense!”', delay:1900, href:'https://www.voicy.network/sounds/XHcruaKeSk__6B55fQnDqQ-jetha-nonsense'},
+  ladi: {src:'assets/sounds/babuchak-chup-re.mp3', title:'Jethalal: Babuchak, chup re!', caption:'Ladi ki nonstop bakbak → “Babuchak, chup re!”', delay:2100, href:'https://www.voicy.network/sounds/1V9zV295Vkyey32Du_vq-A-babuchak-chup-re'},
+  greenbomb: {src:'assets/sounds/hey-ma-mataji.mp3', title:'Daya: Hey Maa Mataji!', caption:'Do bade dhamake → Daya: “Hey Maa Mataji!”', delay:3300, href:'https://www.voicy.network/sounds/JLIVv7szYU_HATFNCklWGw-hey-ma-mataji'}
+};
+const crackerVoicePlayer = new Audio(), voiceJobs = new Set();
+let crackerVoiceQueue = [], voicePlaying = false, lastVoiceKind = 'rocket';
+crackerVoicePlayer.preload = 'auto';
+function syncCrackerVoiceVolume() { crackerVoicePlayer.volume = volume; }
+function stopCrackerVoice() {
+  voiceJobs.forEach(id => { clearTimeout(id); timers.delete(id); }); voiceJobs.clear();
+  crackerVoiceQueue = []; voicePlaying = false; crackerVoicePlayer.pause();
+}
+function showCrackerVoice(kind, playing = false) {
+  const cue = crackerVoices[kind]; if (!cue) return;
+  $('#voice-caption').textContent = (playing ? '♪ ' : '') + cue.caption;
+  $('#replay-cracker-voice').disabled = false;
+  $('#voice-credit').href = cue.href; $('#voice-credit').hidden = false;
+}
+function playNextCrackerVoice() {
+  if (!sound || voicePlaying || !crackerVoiceQueue.length) return;
+  const kind = crackerVoiceQueue.shift(), cue = crackerVoices[kind];
+  voicePlaying = true; lastVoiceKind = kind; showCrackerVoice(kind, true);
+  crackerVoicePlayer.src = cue.src; syncCrackerVoiceVolume();
+  crackerVoicePlayer.play().catch(() => { voicePlaying = false; $('#voice-caption').textContent = cue.caption + ' · Tap replay to hear it.'; });
+}
+crackerVoicePlayer.onended = () => { voicePlaying = false; showCrackerVoice(lastVoiceKind); playNextCrackerVoice(); };
+crackerVoicePlayer.onerror = () => { voicePlaying = false; $('#voice-caption').textContent = 'Punchline could not load. Tap replay to try again.'; };
+function queueCrackerVoice(kind) {
+  if (!crackerVoices[kind]) return;
+  lastVoiceKind = kind; showCrackerVoice(kind);
+  if (!sound) return;
+  const id = later(() => {
+    voiceJobs.delete(id);
+    // Rapid clicks queue up to one of each fitting reaction; voices never talk over one another.
+    if (!crackerVoiceQueue.includes(kind) && crackerVoiceQueue.length < 4) crackerVoiceQueue.push(kind);
+    playNextCrackerVoice();
+  }, crackerVoices[kind].delay);
+  voiceJobs.add(id);
+}
+$('#replay-cracker-voice').onclick = () => {
+  stopCrackerVoice(); if (!sound) setSound(true);
+  crackerVoiceQueue.push(lastVoiceKind); playNextCrackerVoice();
+};

@@ -46,7 +46,7 @@ function prepareAudio() {
 }
 // Recorded patakha sounds. Decoded into Web Audio when served over http(s);
 // plain <audio> playback covers index.html opened straight from disk.
-const samples = {greenbomb: 'assets/sounds/bomb.mp3', tmkoc: 'assets/sounds/bhide-reaction.m4a', phuljhadi: 'assets/sounds/fuljadi.mp3', rocket: 'assets/sounds/rocket.mp3', anaar: 'assets/sounds/fuljadi.mp3', ladi: 'assets/sounds/ladi.mp3', bomb: 'assets/sounds/bomb.mp3'};
+const samples = {greenbomb: 'assets/sounds/bomb.mp3', rocket: 'assets/sounds/rocket.mp3', ladi: 'assets/sounds/ladi.mp3'};
 // Moments (seconds) in each recording that the animation is choreographed to.
 // Rocket: launch whoosh from 0s, burst bang at 2.95s, crackle tail around 3.3–3.7s. Bomb: two bangs.
 const ROCKET_BURST = 2.95, ROCKET_CRACKLE = [3.3, 3.45, 3.6, 3.72], BOMB_BLASTS = [.3, 2.97], FOUNTAIN_LENGTH = 2, LADI_LENGTH = 2;
@@ -76,6 +76,7 @@ function playSample(kind, pan) {
   element.play().catch(() => sampleElements.delete(element));
 }
 function stopSounds() {
+  if (typeof stopCrackerVoice === 'function') stopCrackerVoice();
   audioSources.forEach(source => { try { source.stop(); } catch {} });
   audioSources.clear();
   sampleElements.forEach(element => element.pause());
@@ -258,21 +259,18 @@ function shakeSky(strength = 1) {
   sky.style.setProperty('--jolt', strength); sky.classList.remove('shake'); void sky.offsetWidth; sky.classList.add('shake');
   later(() => sky.classList.remove('shake'), 420);
 }
-function launch(x = w * .5, y = h * .32, type = selected) {
+function launch(x = w * .5, y = h * .32, type = selected, announce = true) {
   $('#sky-caption').style.opacity = '0'; count++;
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
   rooftopReaction(); const ground = h - 42;
-  if (typeof extraFirecracker === 'function' && extraFirecracker(type, x, y)) return;
+  if (announce && !$('#finale').disabled && typeof queueCrackerVoice === 'function') queueCrackerVoice(type);
   if (type === 'rocket') {
     // The full recording plays; the rocket rises through the whoosh and bursts on its bang.
     soundEffect('rocket', x);
     rockets.push({x, y: ground, ground, target: Math.max(32, Math.min(y, h * .57)), born: performance.now(), flight: ROCKET_BURST * 1000});
   } else if (type === 'bomb' || type === 'greenbomb') {
     const heavy = type === 'greenbomb'; soundEffect(type, x);
-    if (heavy) {
-      sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 3400);
-      later(() => { soundEffect('tmkoc', x); if (typeof roofSay === 'function') roofSay('Gokuldham committee has entered the chat.'); }, 3300);
-    }
+    if (heavy) { sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 3400); }
     const second = Math.max(30, Math.min(w - 30, x + (Math.random() > .5 ? 36 : -36)));
     const fuse = (fx, from, to) => { for (let t = from; t < to; t += 40) later(() => {
       for (let i = 0; i < (reduced ? 1 : 4); i++) add(fx, ground - 4, (Math.random() - .5) * 2.4, -1 - Math.random() * 2, Math.random() > .4 ? '#ffd17e' : '#fff6c6', 18 + Math.random() * 12, 1.2, .06);
@@ -344,14 +342,16 @@ $('#volume').oninput = e => {
   if (master) master.gain.setTargetAtTime(volume, audio.currentTime, .03);
   sampleElements.forEach(element => element.volume = volume);
   syncReactionAudio();
+  if (typeof syncCrackerVoiceVolume === 'function') syncCrackerVoiceVolume();
 };
 $('#finale').onclick = () => {
   if ($('#finale').disabled) return;
   $('#finale').disabled = true; toast('Sharma ji just closed all his windows.');
   // An immediate first volley, then a compact crescendo with only one fountain.
   for (let i = 0; i < 3; i++) launch(w * (.22 + i * .28), h * (.18 + i * .07), 'rocket');
-  for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'anaar' : 'rocket'), 140 + i * 115);
+  for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'chakri' : 'rocket'), 140 + i * 115);
   later(() => $('#finale').disabled = false, 140 + 11 * 115 + ROCKET_BURST * 1000);
+  if (typeof queueCrackerVoice === 'function') later(() => queueCrackerVoice('rocket', true), 140 + 11 * 115);
 };
 function clearSky() {
   timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; shockwaves = []; projectiles = []; stopSounds();
