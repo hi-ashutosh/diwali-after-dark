@@ -11,7 +11,7 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 - **Chhat fights:** choose Chintu, Sharma ji, or Pooja as your thrower, select a patakha, and tap a rooftop rival. Cartoon packets follow an arc; characters jump, complain, and optionally throw a chakri back once. This is a solo browser game with NPC characters. The counter tracks successful pranks.
 - **Big screen / Surprise me / Breeze:** expand the arena, launch a random effect, or let the wind bend your sparks. Escape exits big-screen mode.
 - **The chhat gang:** click Sharma ji, Chintu, and Pooja for rooftop commentary. They sway, wave, film, and dance as fireworks launch. Milestone counts unlock society-committee complaints.
-- **Family WhatsApp:** choose your reply and face the consequences.
+- **Family WhatsApp:** 21 branching scenes with three replies matched to each latest message. Follow the marriage interview, mithai investigation, NASA forwards, PDF duty and family-photo chaos. Choices replace themselves every turn; new conversations rotate their opening topic, and long chats keep the most recent 60 bubbles.
 - **Corporate bonus:** five escalating HR disappointments, with a Hera Pheri reaction GIF.
 - **Share:** native sharing on supported devices; clipboard fallback elsewhere.
 
@@ -83,3 +83,7 @@ Green bomb and the three new bomb variants use the original two-bomb recording, 
 ## Original firecracker audio
 
 Four unchanged recordings were contributed by DBMistry-Git on `dharmik-dev`, commits `87ef472` and `9669cad`: `rocket.mp3`, `bomb.mp3`, `fuljadi.mp3`, and `ladi.mp3` under `assets/sounds/`. Rocket, Bomb and Ladi use these files unchanged. Chakri uses a derived 2.64-second WAV: the original attack, an extended middle with 80ms crossfades, and a 600ms fade synchronized with the final sparks. The original `fuljadi.mp3` remains unchanged. Later experimental dialogue clips are retained on disk but are not used by the firecrackers. The separate 18-clip meme games are unchanged.
+
+## Dharmik’s Haath wala anaar reveal
+
+Integrated from DBMistry-Git’s `07b36965eb78a3a416e525daeff8bc063e6d4d91` on `dharmik-dev`: the illustrated Chhotu section and exact `assets/hipal-lightiya.mp4` clip. “See what happens” reveals and plays the 15-second Hipal lightiya meme; “Watch again” replays it. Playback respects global sound/volume, has native pause controls, and stops when a side quest opens, another reaction plays, or the tab is hidden. The existing firework playground and recordings are retained.

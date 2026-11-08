@@ -18,3 +18,23 @@
 .cracker-tray{grid-template-columns:repeat(7,minmax(0,1fr));gap:7px}.cracker{padding:13px 5px;gap:7px}.cracker small{font-size:10px;line-height:1.4}.cracker-art{height:55px}.cracker-art svg{width:55px;height:55px}.cracker-voice{min-height:48px}.sky.heavy-impact .roof-stage{filter:drop-shadow(0 -8px 14px #ffce8799) brightness(1.35)}
 @media(max-width:1050px){.cracker-tray{grid-template-columns:repeat(4,minmax(0,1fr))}.cracker:last-child{grid-column:span 2}}
 @media(max-width:550px){.cracker-tray{grid-template-columns:repeat(2,minmax(0,1fr))}.cracker{padding:10px;flex-direction:row;justify-content:flex-start;text-align:left}.cracker small{font-size:10px}.cracker-art svg{width:43px;height:43px}.cracker-art{height:43px}.cracker:last-child{justify-content:center}.cracker-voice{align-items:flex-start;gap:8px}.cracker-voice span{line-height:1.5}}
+
+/* A kid, an anaar, and the meme that follows */
+.dare{margin:0 5%;padding:52px 0 20px;display:grid;grid-template-columns:1fr minmax(260px,360px);gap:40px;align-items:center}
+.dare-copy p{font-size:13px;line-height:1.8;color:var(--muted);max-width:430px}
+.dare-copy .primary{margin-top:8px}
+.dare-copy .quiet-button{display:block}
+.dare-copy .quiet-button[hidden],.dare-copy .primary[hidden]{display:none}
+.dare-note{font-size:10px!important;color:#9c8496!important;margin-top:14px}
+.dare-stage{background:#352034;border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.dare-art{width:100%;aspect-ratio:540/700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(circle at 50% 35%,#4a2b44,#211526 70%)}
+.dare-art svg{width:78%;height:auto}
+.dare-art span{font-size:10px;letter-spacing:1px;color:var(--gold)}
+.dare-art[hidden],.dare-video[hidden]{display:none}
+.dare-sparks{animation:dare-fizz .35s steps(2) infinite}
+@keyframes dare-fizz{50%{opacity:.35;transform:translate(1px,-1px)}}
+.dare-video{width:100%;aspect-ratio:540/700;background:#000;display:block}
+.dare-credit{align-self:flex-start}
+@media(max-width:700px){.dare{grid-template-columns:1fr;gap:22px;padding-top:37px}.dare-stage{max-width:360px;width:100%;justify-self:center}}
+@media(prefers-reduced-motion:reduce){.dare-sparks{animation:none}}
+.family-chat-meta{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:10px 0;color:#c1b595;font-size:10px}.family-chat-meta .quiet-button{font-size:10px;padding:3px 0}.message{white-space:pre-line;overflow-wrap:anywhere}.family-options button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.dare h2{font-size:clamp(30px,3.4vw,46px)}.dare-stage{min-width:0}.dare-video{object-fit:contain}.dare-art span{text-align:center;line-height:1.5;padding:0 8px}

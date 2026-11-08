@@ -411,9 +411,9 @@ function chooseReaction(scene) {
   const key = choices.reduce((best, candidate) => (reactionUse.get(candidate) || 0) < (reactionUse.get(best) || 0) ? candidate : best);
   reactionUse.set(key, ++reactionTurn); return key;
 }
-function stopReactions() { document.querySelectorAll('video.reaction').forEach(video => video.pause()); }
+function stopReactions() { document.querySelectorAll('video.reaction, #dare-video').forEach(video => video.pause()); }
 function syncReactionAudio() {
-  document.querySelectorAll('video.reaction').forEach(video => { video.muted = !sound || video.dataset.silent === 'true'; video.volume = volume; });
+  document.querySelectorAll('video.reaction, #dare-video').forEach(video => { video.muted = !sound || video.dataset.silent === 'true'; video.volume = volume; });
   document.querySelectorAll('[data-reaction-sound]').forEach(button => {
     button.textContent = sound ? '♪ Sound on' : '♪ Sound off'; button.setAttribute('aria-pressed', sound);
   });
@@ -494,7 +494,77 @@ function papdi(step) {
     }
   };
 }
-function family(){content.innerHTML='<div class="eyebrow">SHARMA PARIVAAR · 47 MEMBERS</div><h2>Happy Diwali 🌷🙏</h2><div class="messages" id="messages" role="log" aria-live="polite"><div class="message"><b>PAPA · ADMIN</b>Happy Diwali. Please do not send Good Morning here. Separate group hai.</div><div class="message"><b>BUA JI</b>Beta, shaadi kab kar rahe ho? 👀</div></div><div class="options"><button data-reply="career">“Abhi career pe focus hai, bua.”</button><button data-reply="food">“Kaju katli kisne khatam ki?”</button><button data-reply="leave">Attempt to leave group ↗</button></div>';let replies=0;const responses={career:['BUA JI','Career toh Sharma ji ke bete ka bhi hai. Uske do bachche hain.'],food:['MUMMY','Maine mehmaan ke liye rakhi thi. Tumne fridge khola kyun?'],leave:['PAPA · ADMIN','Papa added you.\nPapa made you an admin.\nAb light bill ka PDF bhejo.']};content.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{const log=$('#messages');const you=document.createElement('div');you.className='message you';you.textContent=b.textContent;log.append(you);const answer=document.createElement('div');answer.className='message';const who=document.createElement('b');who.textContent=responses[b.dataset.reply][0];answer.append(who,document.createTextNode(responses[b.dataset.reply][1]));log.append(answer);log.scrollTop=log.scrollHeight;replies++;if(replies===3)toast('Achievement unlocked: emotionally present, physically on mute.');})}
+// Every reply belongs to the message currently at the bottom of the family chat.
+const familyScenes = {
+  marriage: {who:'BUA JI', line:'Beta, shaadi kab kar rahe ho? 👀', replies:[
+    ['Abhi career pe focus hai, bua.','career'],['Pehle batao, kaju katli kisne khatam ki?','food'],['Quietly leave the group ↗','admin']]},
+  career: {who:'BUA JI', line:'Career toh Sharma ji ke bete ka bhi hai. Uske do bachche hain. Tumhara appraisal kab hai?', replies:[
+    ['Uska LinkedIn bhejo. Rishta nahi, referral chahiye.','cousin'],['Appraisal mein sirf soan papdi mili.','bonus'],['Salary discuss karein toh sabke saamne karein?','salary']]},
+  food: {who:'MUMMY', line:'Kaju katli mehmaan ke liye rakhi thi. Fridge mein sirf khaali dabba mila. Kisne khaya?', replies:[
+    ['Cousin ki story mein wahi dabba tha.','suspect'],['Main nayi mithai order kar deta hoon.','budget'],['Maine toh bas ek quality check kiya tha.','confession']]},
+  admin: {who:'PAPA · ADMIN', line:'Papa added you.\nPapa made you an admin.\nAb light bill ka PDF bhejo.', replies:[
+    ['Bill_final_FINAL.jpg bhej diya.','pdf'],['Papa, phone mein storage full hai.','tech'],['Admin post se resignation dena hai.','resign']]},
+  cousin: {who:'SHARMA JI KA BETA', line:'Referral bhej dunga. Pehle meri Diwali post pe “So proud of you, brother” comment kar do.', replies:[
+    ['Comment ka bhi probation period hai kya?','bonus'],['Pehle tum batao mithai ka dabba kahan hai.','suspect'],['Family photo mein tag kar deta hoon.','photo']]},
+  bonus: {who:'CHACHU', line:'Hamare zamaane mein bonus cash mein milta tha. Tumhari company ne kya diya?', replies:[
+    ['“We are family” wala heartfelt email.','salary'],['Air fryer ki photo. Newsletter mein.','forwards'],['Soan papdi. Ghar bhej doon?','budget']]},
+  salary: {who:'NRI MAASI', line:'Beta package kitna hai? Dollar mein batao. Group mein hi batao, sab apne hain.', replies:[
+    ['Package 500 gram ka hai. Soan papdi wala.','budget'],['Maasi, aapne jo forward bheja tha woh fake hai.','forwards'],['Is sawaal ke baad group mute kar raha hoon.','mute']]},
+  suspect: {who:'COUSIN', line:'Story mein mera dabba tha, lekin last piece Chhotu ne liya. CCTV footage mein main bas background mein hoon.', replies:[
+    ['Family CID bulao. Footage nikalo.','cctv'],['Chhotu ko bolo haath wala anaar neeche rakhe.','chhotu'],['Theek hai. Naya dabba order karte hain.','budget']]},
+  confession: {who:'MUMMY', line:'Ek quality check mein 18 pieces kaise chale gaye? Ab mehmaan ko khaali dabbe ka review doge?', replies:[
+    ['Food reviewer banna mera backup career hai.','career'],['Replacement ka budget approve kar do.','budget'],['Cousin ne bhi teen liye the. Witness hoon.','suspect']]},
+  budget: {who:'PAPA · ADMIN', line:'Nayi mithai ka budget ₹501. Delivery ₹99 hui toh khud jaake le aana. Bill sambhal ke rakhna.', replies:[
+    ['Bill ka PDF bhi chahiye na?','pdf'],['Cousin ko bhejte hain. Uske paas scooty hai.','cousin'],['Family photo ke baad sab saath chalenge.','photo']]},
+  pdf: {who:'PAPA · ADMIN', line:'Yeh photo hai. PDF chahiye. Aur file ka naam FINAL_2_last_real_final kyun hai?', replies:[
+    ['Scan karke ek proper PDF bhejta hoon.','scan'],['Chachu ko bolo, woh tech expert hain.','tech'],['Admin banaya tha, IT department nahi.','resign']]},
+  scan: {who:'PAPA · ADMIN', line:'PDF khul gaya. Good. Ab last 6 months ke bills bhi isi tarah bhej do. Happy Diwali.', replies:[
+    ['Is assignment ka Diwali bonus milega?','bonus'],['Yeh kaam cousin ko delegate karte hain.','cousin'],['Main ab notifications mute kar raha hoon.','mute']]},
+  tech: {who:'CHACHU · TECH EXPERT', line:'Phone restart karo. Nahi hua toh WhatsApp delete karke install karo. Main har problem mein yahi karta hoon.', replies:[
+    ['Backup bhi isi group mein bhej doon?','forwards'],['Restart se bill PDF ban jaata hai kya?','pdf'],['Papa, admin access wapas le lo.','resign']]},
+  resign: {who:'PAPA · ADMIN', line:'Admin se resign nahi kar sakte. Yeh family hai, startup nahi. Waise dinner ki family photo kisne kheechi?', replies:[
+    ['Photo mere paas hai. Sab ready ho jao.','photo'],['Pehle mithai case solve kar lein?','food'],['Duty par hoon. Notifications off kar raha hoon.','mute']]},
+  forwards: {who:'CHACHU', line:'Forwarded many times: NASA ne confirm kiya, space se hamare ghar ki Diwali lights dikh rahi hain. 🚀🙏', replies:[
+    ['Chachu, iski source link bhejo.','factcheck'],['Lights se yaad aaya, bill ka PDF ready hai.','pdf'],['NASA ko family photo bhi bhej do.','photo']]},
+  factcheck: {who:'CHACHU', line:'Source mere school ke friend ka brother hai. Woh Houston ke WhatsApp group mein hai. Aur kya proof chahiye?', replies:[
+    ['Proof cousin ki mithai wali CCTV jaisa hai.','cctv'],['Theek hai, ab sirf Diwali wishes bhejo.','wishes'],['Aapke forwards ko silently mute kar raha hoon.','mute']]},
+  cctv: {who:'COUSIN', line:'CCTV mein sab dikh gaya. Mummy ne last piece khaya. Ab recording delete karun ya family group mein bhejun?', replies:[
+    ['Delete karo. Ghar pe dinner bhi khana hai.','wishes'],['Mummy, quality check kaisa tha?','confession'],['Evidence chhodo, family photo bhejo.','photo']]},
+  chhotu: {who:'MUMMY', line:'CHHOTU KO PHONE DO. Anaar haath mein kisne diya?! Tum log video banana band karo pehle.', replies:[
+    ['Anaar neeche rakh diya. Sab theek hain.','wishes'],['Cousin director bana hua tha.','suspect'],['Diwali family photo kar lein? Safe distance se.','photo']]},
+  photo: {who:'MUMMY', line:'Family photo aa gayi. Papa ki aankh band hai, cousin ka filter on hai. Sab ek aur photo ke liye wapas aao.', replies:[
+    ['Papa ko crop nahi, wake up karte hain.','wishes'],['Cousin se original photo maango.','cousin'],['Photo upload karke group mute kar deta hoon.','mute']]},
+  wishes: {who:'DADI', line:'Bas karo CID aur PDF. Sabko Happy Diwali. Khana garam hai. Phone rakho aur aa jao. 🪔', replies:[
+    ['Happy Diwali, Dadi. Aa raha hoon. ❤️','mute'],['Mithai toh bachi hai na?','food'],['Dinner se pehle ek family photo!','photo']]},
+  mute: {who:'WHATSAPP', line:'You muted this group for Always.\n47 members are still typing. Diwali continues.', replies:[
+    ['Ek baar dekh loon, naya forward aaya kya?','forwards'],['Kaju katli ka case phir kholte hain.','food'],['Dadi ko Happy Diwali bolna reh gaya.','wishes']]}
+};
+let familyVisits = 0;
+function family() {
+  content.innerHTML = '<div class="eyebrow">SHARMA PARIVAAR · 47 MEMBERS</div><h2>Happy Diwali 🌷🙏</h2><div class="messages" id="messages" role="log" aria-label="Family conversation" aria-live="polite"></div><div class="family-chat-meta"><span id="family-topic">47 members · everyone has an opinion</span><button class="quiet-button" id="family-reset">New conversation ↻</button></div><div class="options family-options" id="family-options" aria-label="Reply to the latest message"></div>';
+  const log = $('#messages'), options = $('#family-options'); let turns = 0;
+  function message(who, line, mine = false) {
+    const bubble = document.createElement('div'); bubble.className = mine ? 'message you' : 'message';
+    const label = document.createElement('b'); label.textContent = who;
+    bubble.append(label, document.createTextNode(line)); log.append(bubble);
+    while (log.children.length > 60) log.firstElementChild.remove();
+    log.scrollTop = log.scrollHeight;
+  }
+  function showScene(key, focus = false) {
+    const scene = familyScenes[key]; message(scene.who, scene.line);
+    $('#family-topic').textContent = key === 'mute' ? 'Muted. For now.' : `Replying to ${scene.who.toLowerCase()}`;
+    options.replaceChildren();
+    for (const [text, next] of scene.replies) {
+      const button = document.createElement('button'); button.textContent = text;
+      button.onclick = () => { message('YOU', text, true); turns++; showScene(next, true); if (turns === 6) toast('Achievement unlocked: emotionally present, physically on mute.'); };
+      options.append(button);
+    }
+    if (focus) options.querySelector('button').focus({preventScroll:true});
+  }
+  message('PAPA · ADMIN', 'Happy Diwali. Please do not send Good Morning here. Separate group hai.');
+  showScene(['marriage','food','forwards'][familyVisits++ % 3]);
+  $('#family-reset').onclick = () => { family(); $('#family-options button').focus(); };
+}
 let bonusRoll = 0;
 function bonus() {
   stopReactions();
@@ -513,6 +583,21 @@ function bonus() {
   };
 }
 $('#share').onclick=async()=>{const data={title:'Diwali After Dark',text:'Patakhe without pollution. Family drama without the family. Aao, thoda kaand karein. 🪔',url:location.href};try{if(navigator.share){await navigator.share(data)}else if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(`${data.text}\n${data.url}`);toast('Link copied. Family group mein daalne ki himmat hai?')}else{toast('Share this page’s address with your favourite troublemaker.')}}catch(e){if(e.name!=='AbortError')toast('Share this page’s address with your favourite troublemaker.')}};
+// Dharmik's Haath wala anaar reveal, with the exact branch clip and shared audio controls.
+const dareVideo = $('#dare-video');
+function playDare() {
+  stopReactions(); clearSky(); $('#dare-art').hidden = true; dareVideo.hidden = false;
+  dareVideo.muted = !sound; dareVideo.volume = volume; dareVideo.currentTime = 0;
+  dareVideo.play().catch(() => { dareVideo.controls = true; });
+  $('#dare-play').hidden = true; $('#dare-replay').hidden = false;
+}
+$('#dare-play').onclick = () => { playDare(); $('#dare-replay').focus(); };
+$('#dare-replay').onclick = playDare;
+dareVideo.onerror = () => {
+  dareVideo.hidden = true; $('#dare-art').hidden = false;
+  $('#dare-play').hidden = false; $('#dare-replay').hidden = true;
+  toast('The clip could not load. Tap See what happens to try again.');
+};
 // A tiny opening flourish; reduced-motion visitors start with a still sky.
 if(!reduced)later(()=>{burst(w*.76,h*.3,55,'#d9ae66',true)},650);
 document.addEventListener('visibilitychange', () => {

@@ -127,6 +127,20 @@ assert(shapes.sutlibomb.rings.every(r=>r.squash<=.3) && shapes.sutlibomb.smoke>=
 assert(new Set(shapes.diwalibomb.sparks.map(p=>Math.round(p.x))).size>=7 && shapes.diwalibomb.sparks.every(p=>p.life>=112),'Diwali special needs separated, long-lived willow lobes');
 for(const shape of Object.values(shapes)) assert(shape.sparks.length+shape.smoke<=1000,'Distinct bombs must respect the existing particle cap');
 console.log('Passed: four different bomb silhouettes and physics with bounded particle counts.');
+// Reply choices must follow every reachable conversation branch, never a fixed button list.
+const familyGraph=vm.runInNewContext(source.slice(source.indexOf('const familyScenes ='),source.indexOf('let familyVisits ='))+';familyScenes');
+assert.equal(Object.keys(familyGraph).length,21);
+const reachable=new Set(),pending=['marriage'];
+while(pending.length){const key=pending.pop();if(reachable.has(key))continue;reachable.add(key);const scene=familyGraph[key];assert(scene,'Every reply must have a valid continuation');assert(scene.who&&scene.line);assert.equal(scene.replies.length,3);assert.equal(new Set(scene.replies.map(r=>r[0])).size,3);for(const [text,next] of scene.replies){assert(text.length>8&&familyGraph[next]);assert.notEqual(next,key,'Replies must advance the conversation');assert.notEqual(scene.replies.map(r=>r[0]).join('|'),familyGraph[next].replies.map(r=>r[0]).join('|'),'Options must change with the next message');pending.push(next);}}
+assert.equal(reachable.size,21,'All family-chat scenes must be playable');
+assert.equal(familyGraph.marriage.replies[0][1],'career');
+assert.equal(familyGraph.admin.replies[0][1],'pdf');
+assert.equal(familyGraph.forwards.replies[0][1],'factcheck');
+const dareClip=fs.readFileSync(__dirname+'/assets/hipal-lightiya.mp4');
+for(const atom of ['ftyp','vide','soun'])assert(dareClip.includes(Buffer.from(atom)),'Imported Hipal lightiya clip must contain '+atom);
+assert(html.includes('id="dare-play"')&&html.includes('id="dare-replay"'),'Dharmik’s meme reveal needs play and replay controls');
+assert(source.includes('dareVideo.muted = !sound'),'The imported clip must respect the site mute toggle');
+console.log('Passed: 21 reachable family chat scenes with changing contextual replies, and Dharmik’s meme reveal with video/audio.');
 (async () => {
   const players = [], nodes = new Map();
   const runtime = vm.createContext({
