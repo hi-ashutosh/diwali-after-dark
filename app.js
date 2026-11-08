@@ -4,7 +4,7 @@ const canvas = $('#fireworks'), ctx = canvas.getContext('2d'), sky = $('#sky');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const colors = ['#ffd17e', '#ff8668', '#c99bf0', '#9fd9b1', '#fff1c1', '#ef7dac'];
 let w = 0, h = 0, particles = [], rockets = [], flashes = [], shockwaves = [], projectiles = [], devices = [], count = 0, wind = 0;
-let selected = 'rocket', sound = false, frame, lastTime = 0;
+let selected = 'rocket', sound = true, frame, lastTime = 0;
 let volume = .45, partyUntil = 0, neighbourTimer, lastComment = 0;
 const timers = new Set();
 const smallDevice = matchMedia('(max-width: 700px)').matches || navigator.hardwareConcurrency <= 4;

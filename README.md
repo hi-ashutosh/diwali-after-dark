@@ -35,7 +35,7 @@ All local asset links are relative, so project subpaths work. `.nojekyll` disabl
 
 ## Design & accessibility
 
-Aubergine, vermilion, antique gold, and sage; original CSS illustrations; a rooftop skyline; Google Fonts (Yatra One and DM Sans) with system fallbacks. Keyboard-operable controls, native modal focus management, visible focus outlines, reduced-motion support, and opt-in audio. Large particle sequences are capped. The site pauses animation in background tabs.
+Aubergine, vermilion, antique gold, and sage; original CSS illustrations; a rooftop skyline; Google Fonts (Yatra One and DM Sans) with system fallbacks. Keyboard-operable controls, native modal focus management, visible focus outlines, reduced-motion support, and audio enabled by default with a mute toggle (playback starts on interaction, subject to browser policy). Large particle sequences are capped. The site pauses animation in background tabs.
 
 ## External content
 
