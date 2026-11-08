@@ -46,3 +46,16 @@ console.log('Passed: elapsed-time animation, bounded/batched rendering, cached g
 assert.equal(Object.keys(scenes.scenes.reactions).length, 18);
 vm.runInContext("globalThis.rotation = Array.from({length:4}, () => chooseReaction(papdiStops[0].reaction));", scenes);
 assert.equal(new Set(scenes.rotation).size, 4, 'A scene must show each fitting option before repeating');
+
+const playground = fs.readFileSync(__dirname + '/playground.js', 'utf8');
+const arcContext = vm.createContext({});
+const arcStart = playground.indexOf('function tossPoint('), arcEnd = playground.indexOf('function tossAt(', arcStart);
+vm.runInContext(playground.slice(arcStart, arcEnd) + `
+  const from = {x: 10, y: 200}, to = {x: 510, y: 200};
+  globalThis.arc = [tossPoint(from, to, 0, 100), tossPoint(from, to, .5, 100), tossPoint(from, to, 1, 100)];
+`, arcContext);
+assert.equal(arcContext.arc[0].x, 10); assert.equal(arcContext.arc[2].x, 510);
+assert(Math.abs(arcContext.arc[1].x - 260) < .001 && arcContext.arc[1].y < 110, 'Thrown patakhas must follow an elevated arc to their target');
+const html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+assert.equal((html.match(/class="cracker(?: active)?"/g) || []).length, 10, 'The playground must offer ten firecrackers');
+console.log('Passed: ten firecracker controls, and cartoon throw trajectory.');

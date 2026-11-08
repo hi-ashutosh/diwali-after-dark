@@ -3,7 +3,7 @@ const $ = s => document.querySelector(s);
 const canvas = $('#fireworks'), ctx = canvas.getContext('2d'), sky = $('#sky');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const colors = ['#ffd17e', '#ff8668', '#c99bf0', '#9fd9b1', '#fff1c1', '#ef7dac'];
-let w = 0, h = 0, particles = [], rockets = [], flashes = [], count = 0;
+let w = 0, h = 0, particles = [], rockets = [], flashes = [], projectiles = [], count = 0, wind = 0;
 let selected = 'rocket', sound = false, audio, master, noiseBuffer, frame, lastTime = 0;
 let volume = .45, partyUntil = 0, neighbourTimer, lastComment = 0;
 const timers = new Set(), audioSources = new Set();
@@ -134,8 +134,9 @@ function animate(time) {
     else if (frameAverage < 18) particleBudget = Math.min(smallDevice ? 650 : 1000, particleBudget + 40);
     lastQualityCheck = time;
   }
-  if (!particles.length && !rockets.length && !flashes.length && !partyUntil) return;
+  if (!particles.length && !rockets.length && !flashes.length && !projectiles.length && !partyUntil) return;
   ctx.clearRect(0, 0, w, h);
+  if (typeof updateTosses === 'function') updateTosses(time);
   for (let i = rockets.length - 1; i >= 0; i--) {
     const r = rockets[i]; r.y -= r.speed * dt;
     for (let k = 0; k < (reduced ? 1 : 2); k++) add(r.x, r.y, (Math.random() - .5) * .5, 1 + Math.random(), k % 2 ? '#ff9e52' : '#fff3bd', 24, 1.2, .012);
@@ -147,7 +148,7 @@ function animate(time) {
     const p = particles[i]; p.life -= dt;
     if (p.life <= 0 || p.y > h + 20) continue;
     const damping = Math.pow(p.drag, dt);
-    p.x += p.vx * dt; p.y += p.vy * dt + p.gravity * dt * dt * .5;
+    p.x += (p.vx + wind * (p.smoke ? 1.5 : .4)) * dt; p.y += p.vy * dt + p.gravity * dt * dt * .5;
     p.vx *= damping; p.vy = p.vy * damping + p.gravity * dt;
     particles[alive++] = p;
   }
@@ -176,7 +177,7 @@ function animate(time) {
     ctx.fillStyle = color; ctx.globalAlpha = .9; ctx.beginPath();
     for (const p of particles) if (!p.smoke && p.color === color) {
       const size = p.size * Math.min(1, p.life / 16);
-      ctx.rect(p.x - size / 2, p.y - size / 2, size, size);
+      ctx.rect(p.x - size / 2, p.y - size / 2, p.confetti ? size * 1.7 : size, size);
     }
     ctx.fill();
   }
@@ -196,8 +197,9 @@ function launch(x = w * .5, y = h * .32, type = selected) {
   $('#sky-caption').style.opacity = '0'; count++;
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
   rooftopReaction(); const ground = h - 42;
+  if (typeof extraFirecracker === 'function' && extraFirecracker(type, x, y)) return;
   if (type === 'rocket') {
-    soundEffect('rocket', x); rockets.push({x, y: ground, target: Math.max(32, Math.min(y, h * .57)), speed: 8.5 + Math.random() * 1.5});
+    soundEffect('rocket', x); rockets.push({x, y: ground, target: Math.max(32, Math.min(y, h * .57)), speed: Math.max(8.5, h / 45) + Math.random() * 1.5});
   } else if (type === 'anaar') {
     soundEffect('anaar', x);
     for (let k = 0; k < 42; k++) later(() => {
@@ -226,12 +228,12 @@ function launch(x = w * .5, y = h * .32, type = selected) {
   }
   if ([10, 25, 50, 100].includes(count)) toast(`${count} patakhe! Society committee ne emergency meeting bula li.`);
 }
-canvas.addEventListener('pointerdown', e => { const r = canvas.getBoundingClientRect(); launch(e.clientX - r.left, e.clientY - r.top); });
-canvas.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); launch(); } });
+canvas.addEventListener('pointerdown', e => { const r = canvas.getBoundingClientRect(); playgroundAction(e.clientX - r.left, e.clientY - r.top); });
+canvas.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playgroundAction(w * .5, h * .3); } });
 document.querySelectorAll('.cracker').forEach(b => b.addEventListener('click', () => {
   selected = b.dataset.type;
   document.querySelectorAll('.cracker').forEach(c => { const active = c === b; c.classList.toggle('active', active); c.setAttribute('aria-pressed', active); });
-  launch(w * .55, h * .3, selected);
+  if (typeof playMode === 'undefined' || playMode === 'sky') launch(w * .55, h * .3, selected);
 }));
 function setSound(enabled) {
   sound = enabled;
@@ -257,13 +259,15 @@ $('#finale').onclick = () => {
   later(() => $('#finale').disabled = false, 2600);
 };
 function clearSky() {
-  timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; stopSounds();
+  timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; projectiles = []; stopSounds();
+  if (typeof resetTosses === 'function') resetTosses();
   $('#finale').disabled = false; $('#sky-caption').style.opacity = '1';
   sky.classList.remove('celebrating'); partyUntil = 0; clearTimeout(neighbourTimer); $('#roof-comment').classList.remove('visible');
   ctx.clearRect(0, 0, w, h);
 }
 $('#clear-sky').onclick = clearSky;
 document.querySelectorAll('.roof-person').forEach(b => b.onclick = () => {
+  if (typeof rooftopClick === 'function' && rooftopClick(b)) return;
   $('#sky-caption').style.opacity = '0'; rooftopReaction(true);
   toast(b.dataset.line);
   if (b.dataset.friend === 'dancer') { burst(w * .5, h * .3, 75, '#ef7dac'); }

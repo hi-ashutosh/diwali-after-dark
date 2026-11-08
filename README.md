@@ -6,8 +6,10 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 
 ## Play
 
-- **Patakha lab:** select Rocket, Anaar, Chakri, or Ladi and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
+- **Patakha lab:** choose from ten effects: Rocket, Anaar, Chakri, Ladi, Phuljhadi, Sutli bomb, Sky shots, Confetti, Flying UFO, and Dilwale hearts. Tap the sky to launch; drag a Phuljhadi to paint with sparks. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
 - **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Each joke has a curated pool of fitting reaction clips and a scene-specific caption. Least-recently-used selection reduces repetition across games, and “Another take” cycles through the current scene’s fitting alternatives. Endings change between trips.
+- **Chhat fights:** choose Chintu, Sharma ji, or Pooja as your thrower, select a patakha, and tap a rooftop rival. Cartoon packets follow an arc; characters jump, complain, and optionally throw confetti back once. This is a solo browser game with NPC characters. The counter tracks successful pranks.
+- **Big screen / Surprise me / Breeze:** expand the arena, launch a random effect, or let the wind bend your sparks. Escape exits big-screen mode.
 - **The chhat gang:** click Sharma ji, Chintu, and Pooja for rooftop commentary. They sway, wave, film, and dance as fireworks launch. Milestone counts unlock society-committee complaints.
 - **Family WhatsApp:** choose your reply and face the consequences.
 - **Corporate bonus:** five escalating HR disappointments, with a Hera Pheri reaction GIF.
@@ -72,4 +74,4 @@ No analytics, cookies, or user data storage.
 
 ## Regression checks
 
-With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and all 18 reaction assets, available audio tracks, and contextual rotation before repetition.
+With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and all 18 reaction assets, available audio tracks, contextual rotation, ten firecracker controls, throw trajectories, and bounded return-fire logic.
