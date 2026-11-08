@@ -78,12 +78,12 @@ const originalHashes = {
   ladi:'283dfb6f8e90e0715dd2d005abb02d7513ce832ab632322d284e4fca48114d2c'
 };
 for (const [key, hash] of Object.entries(originalHashes)) {
-  assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(__dirname + '/' + config.soundClips[key].src)).digest('hex'), hash, 'Restore the exact original '+key+' recording');
+  assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(__dirname + '/' + (key === 'fizz' ? 'assets/sounds/fuljadi.mp3' : config.soundClips[key].src))).digest('hex'), hash, 'Restore the exact original '+key+' recording');
 }
 assert.deepEqual(Array.from(Object.values(config.crackerProfiles).map(p=>p.clip)), ['rocket','fizz','ladi','bomb','bomb','bomb','bomb']);
 assert(!source.includes('jethalal-diwali') && !source.includes('jetha-nonsense') && !source.includes('babuchak-chup-re'), 'Rejected audio must not be used in the playground');
 const cueTasks=[], blasts=[], choreography=vm.createContext({
-  h:400,w:600,reduced:true,performance:{now:()=>0},devices:[],rockets:[],flashes:[],BOMB_BLASTS:[.3,2.97],ROCKET_BURST:2.95,
+  h:400,w:600,reduced:true,performance:{now:()=>0},devices:[],rockets:[],flashes:[],BOMB_BLASTS:[.3,2.97],ROCKET_BURST:2.95,CHAKRI_TAIL:.6,
   later:(fn,ms)=>cueTasks.push({fn,ms}),flower:(x,y)=>blasts.push({x,y}),smoke(){},shakeSky(){},
   sky:{classList:{add(){},remove(){}}}
 });
@@ -92,6 +92,19 @@ for (const ms of [300,2970]) { const cue=cueTasks.find(t=>t.ms===ms);assert(cue,
 assert.equal(blasts.length,2,'The original two-bomb track must produce two major impacts');
 vm.runInContext("animateCracker(300,80,'rocket',4.032);",choreography);
 assert.equal(choreography.rockets[0].flight,2950,'Rocket must burst on the original recorded bang');
+// Chakri keeps its original spin length, with audio covering the 36-frame spark tail.
+cueTasks.length=0;
+vm.runInContext("animateCracker(300,80,'chakri',2.64);",choreography);
+const lastSparkEnd = Math.max(...cueTasks.map(t=>t.ms)) + 36 * 16.67;
+assert(lastSparkEnd <= config.soundClips.fizz.duration*1000 && lastSparkEnd > 2500, 'Chakri audio must cover every final spark without shortening the spin');
+const sizzle=fs.readFileSync(__dirname+'/'+config.soundClips.fizz.src);
+assert.equal(sizzle.toString('ascii',0,4),'RIFF');
+assert.equal(sizzle.toString('ascii',8,12),'WAVE');
+const pcm=sizzle.subarray(44), rate=sizzle.readUInt32LE(24), channels=sizzle.readUInt16LE(22);
+assert.equal(pcm.length/(rate*channels*2),2.64,'The extended sizzle must last through the spark tail');
+function sizzleRms(from,to){let sum=0,n=0;for(let i=Math.floor(from*rate)*channels*2;i<Math.floor(to*rate)*channels*2;i+=2){sum+=pcm.readInt16LE(i)**2;n++;}return Math.sqrt(sum/n);}
+assert(sizzleRms(2.54,2.64)<sizzleRms(1.8,1.9)*.1,'Chakri must fade smoothly to silence instead of cutting out');
+assert.equal(pcm.readInt16LE(pcm.length-2),0,'The final audio sample must end at silence');
 vm.runInContext(`rockets.push({x:100,y:h-42,ground:h-42,target:50,born:92,flight:2900});animate(592);globalThis.rocketY=rockets[0].y;`, context);
 assert(Number.isFinite(context.rocketY) && context.rocketY > 50 && context.rocketY < 318, 'Rocket flight must remain finite and clock-driven');
 (async () => {
@@ -120,5 +133,5 @@ assert(Number.isFinite(context.rocketY) && context.rocketY > 50 && context.rocke
   assert.equal(players.filter(p=>p.plays).length,8,'Rapid launches must bound concurrent playback without stopping active recordings');
   vm.runInContext('stopSounds()',runtime);
   assert(players.every(p=>p.paused),'Explicit mute/clear must stop active sounds');
-  console.log('Passed: four exact original recordings, seven restored pairings, recorded blast timing, complete repeat-click playback, and bounded audio concurrency.');
+  console.log('Passed: original recordings preserved, Chakri sizzle covering final sparks with a smooth fade, recorded blast timing, complete repeat-click playback, and bounded audio concurrency.');
 })().catch(error => { console.error(error); process.exitCode=1; });

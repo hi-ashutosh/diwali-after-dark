@@ -29,17 +29,17 @@ function resize() {
 }
 new ResizeObserver(resize).observe(sky);
 
-// Dharmik's original cracker recordings, played intact with no dialogue overlays.
+// Dharmik's cracker recordings; Chakri sustains the same sizzle with a gentle tail.
 const soundClips = {
   rocket: {src:'assets/sounds/rocket.mp3', duration:4.032},
   bomb: {src:'assets/sounds/bomb.mp3', duration:3.528},
-  fizz: {src:'assets/sounds/fuljadi.mp3', duration:2.04},
+  fizz: {src:'assets/sounds/chakri-sizzle.wav', duration:2.64},
   ladi: {src:'assets/sounds/ladi.mp3', duration:2.04}
 };
-const ROCKET_BURST = 2.95, BOMB_BLASTS = [.3, 2.97];
+const ROCKET_BURST = 2.95, BOMB_BLASTS = [.3, 2.97], CHAKRI_TAIL = .6;
 const crackerProfiles = {
   rocket: {clip:'rocket', caption:'Rocket · the original whistle, bang and crackle'},
-  chakri: {clip:'fizz', caption:'Chakri · the original sizzling recording'},
+  chakri: {clip:'fizz', caption:'Chakri · the original sizzle, with a soft finish'},
   ladi: {clip:'ladi', caption:'Ladi · the original rapid-fire recording'},
   greenbomb: {clip:'bomb', caption:'Green bomb · the original two-bomb recording'},
   mirchibomb: {clip:'bomb', caption:'Mirchi bomb · red bursts on the original two bangs'},
@@ -228,7 +228,8 @@ function animateCracker(x, y, type, duration, elapsed = 0) {
   if (type === 'rocket') {
     rockets.push({x, y:ground, ground, target:Math.max(50, Math.min(y, h * .57)), born:performance.now() - elapsed * 1000, flight:ROCKET_BURST * 1000});
   } else if (type === 'chakri') {
-    const ticks = Math.ceil(ms / 45);
+    // Reserve the recording's fading tail for sparks already in the air.
+    const spinMs = Math.max(450, ms - CHAKRI_TAIL * 1000), ticks = Math.ceil(spinMs / 45);
     for (let k = 0; k < ticks; k++) later(() => {
       const a = k * k * .04, cx = x + Math.sin(k * .15) * 22;
       for (let j = 0; j < (reduced ? 2 : 6); j++) {
@@ -236,7 +237,7 @@ function animateCracker(x, y, type, duration, elapsed = 0) {
         add(cx, ground, Math.cos(angle) * 5, Math.sin(angle) * 2 - .5, k % 3 ? '#ffd17e' : '#ef7dac', 36, 1.7, .03);
       }
       if (k % 6 === 0) flashes.push({x:cx,y:ground,life:5,size:35,color:'#ffd17e'});
-    }, k * ms / ticks);
+    }, k * spinMs / ticks);
   } else if (type === 'ladi') {
     const pops = Math.min(30, Math.ceil(ms / 65));
     for (let k = 0; k < pops; k++) later(() => {
