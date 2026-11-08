@@ -352,7 +352,7 @@ requestAnimationFrame(animate);
 let toastTimer;
 function toast(t) { $('#toast').textContent = t; $('#toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 3300); }
 const dialog=$('#game-dialog'),content=$('#game-content');let previousFocus;
-function openGame(game){previousFocus=document.activeElement;stopReactions();clearSky();content.replaceChildren();if(game==='papdi')resetPapdi();if(game==='family')family();if(game==='bonus')bonus();dialog.showModal()}
+function openGame(game){previousFocus=document.activeElement;stopReactions();$('#dare-video').pause();clearSky();content.replaceChildren();if(game==='papdi')resetPapdi();if(game==='family')family();if(game==='bonus')bonus();dialog.showModal()}
 document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));
 $('#close-dialog').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});dialog.addEventListener('close',()=>{stopReactions();previousFocus?.focus()});
 const reactions = {
@@ -491,11 +491,24 @@ function bonus() {
   };
 }
 $('#share').onclick=async()=>{const data={title:'Diwali After Dark',text:'Patakhe without pollution. Family drama without the family. Aao, thoda kaand karein. 🪔',url:location.href};try{if(navigator.share){await navigator.share(data)}else if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(`${data.text}\n${data.url}`);toast('Link copied. Family group mein daalne ki himmat hai?')}else{toast('Share this page’s address with your favourite troublemaker.')}}catch(e){if(e.name!=='AbortError')toast('Share this page’s address with your favourite troublemaker.')}};
+// 02 / Haath wala anaar: one click swaps the illustration for the meme, already rolling.
+// The clip is pre-trimmed (no dead air either side) and preloaded so playback starts instantly.
+const dareVideo = $('#dare-video');
+function playDare() {
+  stopReactions(); $('#dare-art').hidden = true; dareVideo.hidden = false;
+  dareVideo.muted = false; dareVideo.volume = volume; dareVideo.currentTime = 0;
+  dareVideo.play().catch(() => { dareVideo.controls = true; });
+  $('#dare-play').hidden = true; $('#dare-replay').hidden = false;
+}
+$('#dare-play').onclick = () => { playDare(); $('#dare-replay').focus(); };
+$('#dare-replay').onclick = playDare;
+dareVideo.onerror = () => { dareVideo.hidden = true; $('#dare-art').hidden = false; toast('The clip could not load. Chhotu is fine, we promise.'); };
+$('#volume').addEventListener('input', () => { dareVideo.volume = volume; });
 // A tiny opening flourish; reduced-motion visitors start with a still sky.
 if(!reduced)later(()=>{burst(w*.76,h*.3,55,'#d9ae66',true)},650);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    cancelAnimationFrame(frame); clearSky(); stopReactions(); clearTimeout(toastTimer); $('#toast').classList.remove('show');
+    cancelAnimationFrame(frame); clearSky(); stopReactions(); dareVideo.pause(); clearTimeout(toastTimer); $('#toast').classList.remove('show');
     if (audio) audio.suspend().catch(() => {});
   } else { lastTime = performance.now(); frame = requestAnimationFrame(animate); }
 });
