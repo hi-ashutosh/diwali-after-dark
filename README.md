@@ -6,8 +6,9 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 
 ## Play
 
-- **Patakha lab:** select Rocket, Anaar, Chakri, or Ladi and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Sound is opt-in and generated with Web Audio.
-- **Soan Papdi Multiverse:** follow a gift through six households and make a historic decision.
+- **Patakha lab:** select Rocket, Anaar, Chakri, or Ladi and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls all effects.
+- **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Reaction GIFs cycle through a shuffled deck without immediate repeats, and endings change between trips.
+- **The chhat gang:** click Sharma ji, Chintu, and Pooja for rooftop commentary. They sway, wave, film, and dance as fireworks launch. Milestone counts unlock society-committee complaints.
 - **Family WhatsApp:** choose your reply and face the consequences.
 - **Corporate bonus:** five escalating HR disappointments, with a Hera Pheri reaction GIF.
 - **Share:** native sharing on supported devices; clipboard fallback elsewhere.
@@ -36,7 +37,14 @@ Aubergine, vermilion, antique gold, and sage; original CSS illustrations; a roof
 
 ## External content
 
-The site works without external media; fonts fall back and GIF failures hide the image gracefully. The Hera Pheri GIF is served by GIPHY and credited in the interface: https://giphy.com/gifs/GrowthX-Club-joke-babu-rao-mast-mara-Dt4ReTH8TrUkB2WWbV
+The site works without external media; fonts fall back and failed GIFs display an original text meme. Reduced-motion visitors can choose whether to play reaction GIFs. Indian reaction GIFs are hotlinked from Tenor and individually credited in the interface:
+
+- Jethalal shocked: https://tenor.com/view/jethalal-jethalal-shocked-shocked-face-reaction-what-what-what-gif-19739068
+- Phir Hera Pheri: https://tenor.com/view/paisa-hi-paisa-hoga-gif-22249471
+- Welcome / Control Uday: https://tenor.com/en-IN/view/control-control-uday-control-uday-control-welcome-bas-kar-gif-13094741744719698430
+- Welcome / Miracle: https://tenor.com/view/miracle-miracle-miracle-saloniie-akshay-kumar-welcome-gif-14491263
+
+Rooftop characters are original inline SVG artwork. Firecracker sounds are synthesized; no audio downloads or recordings are needed.
 
 The bonus/soan-papdi scenario was inspired by current Diwali gifting chatter; the jokes and interactive scenarios are original:
 - https://www.ndtvprofit.com/trending/diwali-gifts-viral-video-shows-office-employees-getting-air-fryers-still-getting-soan-papdi-resign-12260442
