@@ -3,10 +3,10 @@ const $ = s => document.querySelector(s);
 const canvas = $('#fireworks'), ctx = canvas.getContext('2d'), sky = $('#sky');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const colors = ['#ffd17e', '#ff8668', '#c99bf0', '#9fd9b1', '#fff1c1', '#ef7dac'];
-let w = 0, h = 0, particles = [], rockets = [], flashes = [], shockwaves = [], projectiles = [], count = 0, wind = 0;
-let selected = 'rocket', sound = false, audio, master, noiseBuffer, frame, lastTime = 0;
+let w = 0, h = 0, particles = [], rockets = [], flashes = [], shockwaves = [], projectiles = [], devices = [], count = 0, wind = 0;
+let selected = 'rocket', sound = false, frame, lastTime = 0;
 let volume = .45, partyUntil = 0, neighbourTimer, lastComment = 0;
-const timers = new Set(), audioSources = new Set();
+const timers = new Set();
 const smallDevice = matchMedia('(max-width: 700px)').matches || navigator.hardwareConcurrency <= 4;
 let particleBudget = reduced ? 160 : smallDevice ? 650 : 1000;
 let frameAverage = 16.67, lastQualityCheck = 0;
@@ -29,112 +29,51 @@ function resize() {
 }
 new ResizeObserver(resize).observe(sky);
 
-// Layered, spatial Web Audio: ignition, whistle, pressure thump, crackle and echoes.
+// One complete TMKOC clip per effect: no second phase, synthetic overlay or cut-off.
+const soundClips = {
+  diwali: {src:'assets/sounds/jethalal-diwali.m4a', duration:5.64, href:'https://humornama.com/memes/happy-diwali-jethalal-meme/'},
+  nonsense: {src:'assets/sounds/jetha-nonsense.mp3', duration:1.933, href:'https://www.voicy.network/sounds/XHcruaKeSk__6B55fQnDqQ-jetha-nonsense'},
+  babuchak: {src:'assets/sounds/babuchak-chup-re.mp3', duration:1.933, href:'https://www.voicy.network/sounds/1V9zV295Vkyey32Du_vq-A-babuchak-chup-re'},
+  mataji: {src:'assets/sounds/hey-ma-mataji.mp3', duration:2.795, href:'https://www.voicy.network/sounds/JLIVv7szYU_HATFNCklWGw-hey-ma-mataji'}
+};
+const crackerProfiles = {
+  rocket: {clip:'diwali', caption:'Jethalal ka Diwali rocket · seedha Gokuldham se'},
+  chakri: {clip:'nonsense', caption:'Chakri ko direction nahi mil rahi. “Nonsense!”'},
+  ladi: {clip:'babuchak', caption:'Itni bakbak? “Babuchak, chup re!”'},
+  greenbomb: {clip:'mataji', caption:'Ek bada dhamaka. “Hey Maa Mataji!”'},
+  mirchibomb: {clip:'babuchak', caption:'Teen mirchi dhamake. Babuchak ko chup karao!'},
+  sutlibomb: {clip:'nonsense', caption:'Sutli ka hungama. Jethalal: “Nonsense!”'},
+  diwalibomb: {clip:'diwali', caption:'Jethalal Diwali special · sona hi sona'}
+};
+const sampleElements = new Set(), clipPlayers = new Map();
+let audioGeneration = 0;
 function prepareAudio() {
-  if (!audio) {
-    audio = new (window.AudioContext || window.webkitAudioContext)();
-    master = audio.createGain(); master.gain.value = volume;
-    const limiter = audio.createDynamicsCompressor();
-    limiter.threshold.value = -14; limiter.knee.value = 10; limiter.ratio.value = 8;
-    master.connect(limiter); limiter.connect(audio.destination);
-    noiseBuffer = audio.createBuffer(1, audio.sampleRate * 3, audio.sampleRate);
-    const data = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    loadSamples();
-  }
-  audio.resume().catch(() => {});
-}
-// Recorded patakha sounds. Decoded into Web Audio when served over http(s);
-// plain <audio> playback covers index.html opened straight from disk.
-const samples = {greenbomb: 'assets/sounds/bomb.mp3', rocket: 'assets/sounds/rocket.mp3', ladi: 'assets/sounds/ladi.mp3'};
-// Moments (seconds) in each recording that the animation is choreographed to.
-// Rocket: launch whoosh from 0s, burst bang at 2.95s, crackle tail around 3.3–3.7s. Bomb: two bangs.
-const ROCKET_BURST = 2.95, ROCKET_CRACKLE = [3.3, 3.45, 3.6, 3.72], BOMB_BLASTS = [.3, 2.97], FOUNTAIN_LENGTH = 2, LADI_LENGTH = 2;
-const sampleBuffers = new Map(), sampleElements = new Set();
-let samplesRequested = false;
-function loadSamples() {
-  if (samplesRequested || location.protocol === 'file:') return;
-  samplesRequested = true;
-  for (const [kind, src] of Object.entries(samples)) {
-    fetch(src).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
-      .then(data => audio.decodeAudioData(data)).then(buffer => sampleBuffers.set(kind, buffer)).catch(() => {});
+  for (const [key, clip] of Object.entries(soundClips)) if (!clipPlayers.has(key)) {
+    const player = new Audio(clip.src); player.preload = 'auto'; player.volume = volume;
+    clipPlayers.set(key, player);
   }
 }
-// Recordings always play in full, start to finish.
-function playSample(kind, pan) {
-  const buffer = sampleBuffers.get(kind);
-  if (buffer) {
-    if (audioSources.size > 65) return;
-    const source = audio.createBufferSource(), filter = audio.createGain(), gain = audio.createGain();
-    source.buffer = buffer; output(source, filter, gain, pan); source.start(audio.currentTime);
-    return;
+function playCracker(type, effect) {
+  const profile = crackerProfiles[type], clip = soundClips[profile.clip];
+  $('#voice-caption').textContent = profile.caption;
+  $('#voice-credit').href = clip.href; $('#voice-credit').hidden = false;
+  if (!sound) { effect(clip.duration); return; }
+  prepareAudio(); const player = clipPlayers.get(profile.clip);
+  // A repeated click shares the remaining soundtrack; the sentence is never restarted.
+  if (!player.paused && !player.ended) {
+    effect(Math.max(.45, (Number.isFinite(player.duration) ? player.duration : clip.duration) - player.currentTime)); return;
   }
-  if (sampleElements.size > 16) return;
-  const element = new Audio(samples[kind]);
-  element.volume = volume; sampleElements.add(element);
-  element.onended = element.onerror = () => sampleElements.delete(element);
-  element.play().catch(() => sampleElements.delete(element));
+  let started = false; const generation = audioGeneration;
+  const start = () => { if (started || generation !== audioGeneration) return; started = true; effect(Number.isFinite(player.duration) ? player.duration : clip.duration); };
+  player.currentTime = 0; player.volume = volume; sampleElements.add(player);
+  player.onplaying = start;
+  player.onended = player.onerror = () => { sampleElements.delete(player); start(); };
+  player.play().then(start).catch(() => { sampleElements.delete(player); start(); });
 }
 function stopSounds() {
-  if (typeof stopCrackerVoice === 'function') stopCrackerVoice();
-  audioSources.forEach(source => { try { source.stop(); } catch {} });
-  audioSources.clear();
-  sampleElements.forEach(element => element.pause());
+  audioGeneration++;
+  sampleElements.forEach(player => { player.onplaying = player.onended = player.onerror = null; player.pause(); });
   sampleElements.clear();
-}
-function output(source, filter, gain, pan) {
-  const panner = audio.createStereoPanner(); panner.pan.value = Math.max(-.85, Math.min(.85, pan));
-  source.connect(filter); filter.connect(gain); gain.connect(panner); panner.connect(master);
-  audioSources.add(source);
-  source.onended = () => { audioSources.delete(source); source.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect(); };
-}
-function noise(at, duration, level, frequency, pan, sustained = false) {
-  if (audioSources.size > 65) return;
-  const source = audio.createBufferSource(), gain = audio.createGain(), filter = audio.createBiquadFilter();
-  source.buffer = noiseBuffer; filter.type = 'bandpass'; filter.frequency.value = frequency; filter.Q.value = .6;
-  gain.gain.setValueAtTime(.001, at);
-  gain.gain.linearRampToValueAtTime(level, at + .006);
-  if (sustained) {
-    for (let t = .04; t < duration - .06; t += .04) gain.gain.linearRampToValueAtTime(level * (.35 + Math.random() * .65), at + t);
-  }
-  gain.gain.exponentialRampToValueAtTime(.001, at + duration);
-  output(source, filter, gain, pan); source.start(at, Math.random() * (3 - duration), duration);
-}
-function tone(at, duration, from, to, level, pan, type = 'sine') {
-  if (audioSources.size > 65) return;
-  const source = audio.createOscillator(), gain = audio.createGain(), filter = audio.createBiquadFilter();
-  source.type = type; source.frequency.setValueAtTime(from, at);
-  source.frequency.exponentialRampToValueAtTime(to, at + duration);
-  filter.type = 'lowpass'; filter.frequency.value = 5000;
-  gain.gain.setValueAtTime(.001, at); gain.gain.linearRampToValueAtTime(level, at + .015);
-  gain.gain.exponentialRampToValueAtTime(.001, at + duration);
-  output(source, filter, gain, pan); source.start(at); source.stop(at + duration);
-}
-function soundEffect(kind, x = w / 2) {
-  if (!sound) return;
-  try {
-    prepareAudio(); const t = audio.currentTime, pan = x / Math.max(w, 1) * 1.6 - .8;
-    if (samples[kind]) {
-      playSample(kind, pan);
-      if (kind === 'greenbomb') BOMB_BLASTS.forEach(at => tone(t + at, .55, 105, 29, .18, pan));
-    } else if (kind === 'rocket') {
-      noise(t, .7, .35, 2800, pan, true);
-      tone(t + .08, .7, 650, 2600, .075, pan);
-    } else if (kind === 'anaar' || kind === 'chakri') {
-      noise(t, 1.8, .38, kind === 'anaar' ? 5200 : 3300, pan, true);
-      if (kind === 'chakri') tone(t, 1.4, 500, 1800, .025, pan, 'triangle');
-      for (let i = 0; i < 10; i++) noise(t + .08 + Math.random() * 1.5, .025, .22, 6500, pan);
-    } else {
-      const big = kind === 'boom';
-      noise(t, big ? .4 : .12, big ? .95 : .65, big ? 1400 : 3400, pan);
-      tone(t, big ? .6 : .13, big ? 125 : 200, 34, big ? .65 : .18, pan);
-      noise(t + .13, .25, big ? .2 : .08, 700, -pan);
-      if (big) {
-        noise(t + .29, .38, .11, 500, pan * .4);
-        for (let i = 0; i < 7; i++) noise(t + .25 + Math.random() * .65, .025, .13, 5500, pan);
-      }
-    }
-  } catch { sound = false; $('#sound').textContent = '♪ Sound off'; $('#sound').setAttribute('aria-pressed', 'false'); toast('Your browser is keeping this Diwali silent.'); }
 }
 function add(x, y, vx, vy, color, life = 65, size = 1.5, gravity = .055, extra = {}) {
   if (particles.length >= particleBudget) return;
@@ -145,8 +84,8 @@ function smoke(x, y, amount = 3) {
   if (reduced || particles.filter(p => p.smoke).length >= 20) return;
   for (let i = 0; i < Math.min(amount, 2); i++) add(x, y, .15 + Math.random() * .2, -.15 - Math.random() * .2, '#a8a0b2', 100 + Math.random() * 60, 5, -.001, {smoke: true});
 }
-function burst(x, y, n = 130, color = colors[Math.floor(Math.random() * colors.length)], quiet = false) {
-  if (!quiet) soundEffect(n > 60 ? 'boom' : 'pop', x);
+function burst(x, y, n = 130, color = colors[Math.floor(Math.random() * colors.length)], quiet = true) {
+
   const shape = Math.floor(Math.random() * 3), total = reduced ? Math.min(n, 18) : Math.min(n, Math.round(particleBudget * .12));
   flashes.push({x, y, life: reduced ? 0 : 9, size: n > 60 ? 95 : 35, color});
   for (let i = 0; i < total; i++) {
@@ -176,9 +115,10 @@ function animate(time) {
     else if (frameAverage < 18) particleBudget = Math.min(smallDevice ? 650 : 1000, particleBudget + 40);
     lastQualityCheck = time;
   }
-  if (!particles.length && !rockets.length && !flashes.length && !shockwaves.length && !projectiles.length && !partyUntil) return;
+  if (!particles.length && !rockets.length && !flashes.length && !shockwaves.length && !projectiles.length && !devices.length && !partyUntil) return;
   ctx.clearRect(0, 0, w, h);
   if (typeof updateTosses === 'function') updateTosses(time);
+  if (typeof drawFuses === 'function') drawFuses(time);
   for (let i = rockets.length - 1; i >= 0; i--) {
     // Clock-driven flight: a hard push during the launch whoosh, then a slow coast to the bang.
     const r = rockets[i], progress = Math.min(1, (time - r.born) / r.flight);
@@ -244,81 +184,99 @@ function rooftopReaction(force = false) {
   $('#roof-comment').classList.add('visible'); clearTimeout(neighbourTimer);
   neighbourTimer = setTimeout(() => $('#roof-comment').classList.remove('visible'), 2400);
 }
+function flower(x, y, color, petals = 80, speed = 5, life = 80, twist = 0) {
+  const total = reduced ? 14 : Math.min(petals, Math.floor(particleBudget * .18));
+  for (let i = 0; i < total; i++) {
+    const a = i / total * Math.PI * 2, v = speed * (1 + .2 * Math.cos(a * 7 + twist));
+    add(x, y, Math.cos(a) * v, Math.sin(a) * v, i % 5 ? color : '#fff8d7', life + Math.random() * 20, i % 5 ? 1.6 : 2.3, .045, {drag:.987});
+  }
+  burst(x, y, 110, color);
+}
 function rocketBurst(x, y) {
-  burst(x, y, 130, undefined, true);
-  // The recording's crackle tail: glittering pops scattered around the burst.
-  ROCKET_CRACKLE.forEach(at => later(() => {
-    for (let n = 0; n < (reduced ? 1 : 3); n++) {
-      const a = Math.random() * Math.PI * 2, d = 25 + Math.random() * 45;
-      burst(x + Math.cos(a) * d, y + Math.sin(a) * d + 15, reduced ? 4 : 12, '#fff8d7', true);
-    }
-  }, (at - ROCKET_BURST) * 1000));
+  flower(x, y, '#ffd17e', 100, 5.2, 95);
+  later(() => flower(x, y, '#ef7dac', 60, 2.9, 72, 1), 150);
+  for (let i = 0; i < 5; i++) later(() => burst(x + Math.cos(i * 1.26) * 60, y + Math.sin(i * 1.26) * 45, 14, '#fff8d7'), 320 + i * 75);
+}
+function drawFuses(time) {
+  for (let i = devices.length - 1; i >= 0; i--) {
+    const d = devices[i], progress = (time - d.born) / d.fuse;
+    if (progress >= 1) { devices.splice(i, 1); continue; }
+    ctx.save(); ctx.translate(d.x, d.y);
+    const pulse = 1 + Math.sin(progress * 30) * .04;
+    ctx.scale(pulse, pulse); ctx.fillStyle = d.color; ctx.strokeStyle = '#f6d49b'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-10, -15, 20, 19, 5); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -15); ctx.quadraticCurveTo(12, -29, 5 + progress * 5, -22); ctx.stroke();
+    ctx.restore();
+    if (!reduced) for (let j = 0; j < 2; j++) add(d.x + 6, d.y - 24, (Math.random() - .5) * 2, -Math.random() * 2, '#fff1c1', 10, 1.4, .06);
+  }
 }
 function shakeSky(strength = 1) {
   if (reduced) return;
   sky.style.setProperty('--jolt', strength); sky.classList.remove('shake'); void sky.offsetWidth; sky.classList.add('shake');
   later(() => sky.classList.remove('shake'), 420);
 }
-function launch(x = w * .5, y = h * .32, type = selected, announce = true) {
+function launch(x = w * .5, y = h * .32, type = selected, audible = true) {
   $('#sky-caption').style.opacity = '0'; count++;
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
-  rooftopReaction(); const ground = h - 42;
-  if (announce && !$('#finale').disabled && typeof queueCrackerVoice === 'function') queueCrackerVoice(type);
-  if (type === 'rocket') {
-    // The full recording plays; the rocket rises through the whoosh and bursts on its bang.
-    soundEffect('rocket', x);
-    rockets.push({x, y: ground, ground, target: Math.max(32, Math.min(y, h * .57)), born: performance.now(), flight: ROCKET_BURST * 1000});
-  } else if (type === 'bomb' || type === 'greenbomb') {
-    const heavy = type === 'greenbomb'; soundEffect(type, x);
-    if (heavy) { sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 3400); }
-    const second = Math.max(30, Math.min(w - 30, x + (Math.random() > .5 ? 36 : -36)));
-    const fuse = (fx, from, to) => { for (let t = from; t < to; t += 40) later(() => {
-      for (let i = 0; i < (reduced ? 1 : 4); i++) add(fx, ground - 4, (Math.random() - .5) * 2.4, -1 - Math.random() * 2, Math.random() > .4 ? '#ffd17e' : '#fff6c6', 18 + Math.random() * 12, 1.2, .06);
-    }, t); };
-    // Each bomb's fuse fizzes right up to its bang in the recording.
-    fuse(x, 0, BOMB_BLASTS[0] * 1000); fuse(second, BOMB_BLASTS[1] * 1000 - 900, BOMB_BLASTS[1] * 1000);
-    BOMB_BLASTS.forEach((at, n) => later(() => {
-      const bx = n ? second : x;
-      flashes.push({x: bx, y: ground - 20, life: reduced ? 0 : 14, size: heavy ? 270 : 200, color: heavy ? '#caffaf' : '#fff1c1'});
-      burst(bx, ground - 22, heavy ? 190 : 150, heavy ? '#b9ec97' : n ? '#ffd17e' : '#ff8668', true);
-      for (let i = 0; i < (reduced ? 6 : 36); i++) {
-        const a = -Math.PI / 2 + (Math.random() - .5) * 1.9, speed = 3 + Math.random() * 5.5;
-        add(bx, ground - 6, Math.cos(a) * speed, Math.sin(a) * speed, Math.random() > .5 ? '#ffb64b' : '#fff8d7', 40 + Math.random() * 30, 1.8, .11);
-      }
-      smoke(bx, ground - 10, 3); shakeSky(heavy ? 1.6 : 1);
-    }, at * 1000));
-  } else if (type === 'anaar') {
-    soundEffect('anaar', x);
-    // The fountain sprays for exactly as long as the fuljadi recording.
-    const ticks = Math.round(FOUNTAIN_LENGTH * 1000 / 43);
-    for (let k = 0; k < ticks; k++) later(() => {
-      const strength = Math.sin(Math.PI * (k + 3) / (ticks + 4));
-      for (let i = 0; i < (reduced ? 2 : 6); i++) {
-        const a = -Math.PI / 2 + (Math.random() - .5) * .7, speed = (2.5 + Math.random() * 4.2) * strength;
-        add(x, ground, Math.cos(a) * speed, Math.sin(a) * speed, Math.random() > .3 ? '#ffcb70' : '#fff6c6', 52 + Math.random() * 28, 1.3, .075);
-      }
-      if (k % 7 === 0) { smoke(x, ground, 1); flashes.push({x, y: ground, life: reduced ? 0 : 6, size: 25, color: '#ffb64b'}); }
-    }, k * 43);
-  } else if (type === 'chakri') {
-    soundEffect('chakri', x);
-    for (let k = 0; k < 60; k++) later(() => {
-      const a = k * k * .035, cx = Math.max(24, Math.min(w - 24, x + Math.sin(k * .12) * 15));
-      for (let j = 0; j < (reduced ? 2 : 6); j++) {
-        const angle = a + j * Math.PI;
-        add(cx, ground - 2, Math.cos(angle) * (2 + Math.random() * 3.5), Math.sin(angle) * 1.4 - .7, k % 3 ? '#ffca72' : '#ffecbb', 28 + Math.random() * 20, 1.5, .025);
-      }
-      if (k % 10 === 0) smoke(cx, ground, 1);
-    }, k * 30);
-  } else {
-    // The string of pops runs for exactly as long as the ladi recording.
-    soundEffect('ladi', x);
-    const pops = Math.round(LADI_LENGTH * 1000 / 64);
-    for (let k = 0; k < pops; k++) later(() => {
-      const cx = Math.max(20, Math.min(w - 20, x + (k - pops / 2) * 6));
-      burst(cx, ground - Math.random() * 7, reduced ? 8 : 26, k % 2 ? '#ffd17e' : '#ff8668', true);
-    }, k * (LADI_LENGTH * 1000 - 40) / pops + Math.random() * 30);
-  }
+  rooftopReaction();
+  const effect = duration => animateCracker(x, y, type, duration);
+  if (audible) playCracker(type, effect);
+  else effect(soundClips[crackerProfiles[type].clip].duration);
   if ([10, 25, 50, 100].includes(count)) toast(`${count} patakhe! Society committee ne emergency meeting bula li.`);
+}
+function animateCracker(x, y, type, duration) {
+  const ground = h - 42, ms = Math.max(450, duration * 1000);
+  if (type === 'rocket') {
+    rockets.push({x, y:ground, ground, target:Math.max(50, Math.min(y, h * .57)), born:performance.now(), flight:ms * .52});
+  } else if (type === 'chakri') {
+    const ticks = Math.ceil(ms / 45);
+    for (let k = 0; k < ticks; k++) later(() => {
+      const a = k * k * .04, cx = x + Math.sin(k * .15) * 22;
+      for (let j = 0; j < (reduced ? 2 : 6); j++) {
+        const angle = a + j * Math.PI / 3;
+        add(cx, ground, Math.cos(angle) * 5, Math.sin(angle) * 2 - .5, k % 3 ? '#ffd17e' : '#ef7dac', 36, 1.7, .03);
+      }
+      if (k % 6 === 0) flashes.push({x:cx,y:ground,life:5,size:35,color:'#ffd17e'});
+    }, k * ms / ticks);
+  } else if (type === 'ladi') {
+    const pops = Math.min(30, Math.ceil(ms / 65));
+    for (let k = 0; k < pops; k++) later(() => {
+      const cx = Math.max(20, Math.min(w - 20, x + (k - pops / 2) * 7));
+      burst(cx, ground - 4, 24, k % 2 ? '#ffd17e' : '#ff8668');
+      if (k % 5 === 0) shakeSky(.45);
+    }, k * ms * .92 / pops);
+  } else {
+    const palette = {greenbomb:'#b9ec97',mirchibomb:'#ff6454',sutlibomb:'#edba7a',diwalibomb:'#ffdc84'};
+    const color = palette[type], fuse = Math.min(950, ms * .3);
+    if (devices.length >= 12) devices.shift();
+    devices.push({x,y:ground,born:performance.now(),fuse,color});
+    const impact = (bx, by, scale = 1) => {
+      flashes.push({x:bx,y:by,life:14,size:240 * scale,color});
+      flower(bx, by, color, 95, 5 * scale, 80);
+      if (!reduced) {
+        for (const offset of [0, 90, 200]) later(() => {
+          if (shockwaves.length < 12) shockwaves.push({x:bx,y:by,age:0,color,scale:1.5 * scale});
+        }, offset);
+        for (let j = 0; j < 22; j++) add(bx, by, (Math.random() - .5) * 11, -2 - Math.random() * 7, j % 3 ? color : '#fff8d7', 70, 2, .12);
+      }
+      smoke(bx, by, 3); shakeSky(scale);
+      sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 500);
+    };
+    if (type === 'mirchibomb') {
+      for (let i = 0; i < 3; i++) later(() => impact(x + (i - 1) * 32, ground - 12 - i * 17, .75), fuse + i * ms * .17);
+    } else if (type === 'diwalibomb') {
+      later(() => {
+        impact(x, h * .36, 1.25);
+        for (let i = 0; i < 5; i++) later(() => flower(x + Math.cos(i * .75 + .1) * Math.min(w * .24, 130), h * .3 + Math.sin(i * .75) * 45, '#ffd17e', 65, 3, 105, i), i * ms * .09);
+      }, fuse);
+    } else {
+      later(() => impact(x, ground - 20, type === 'sutlibomb' ? 1.5 : 1.2), fuse);
+      if (type === 'sutlibomb') for (let i = 0; i < 4; i++) later(() => {
+        smoke(x + (i - 1.5) * 22, ground - 30, 2);
+        burst(x + (i - 1.5) * 40, ground - 12, 14, '#edba7a');
+      }, fuse + 180 + i * 100);
+    }
+  }
 }
 canvas.addEventListener('pointerdown', e => { const r = canvas.getBoundingClientRect(); playgroundAction(e.clientX - r.left, e.clientY - r.top); });
 canvas.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playgroundAction(w * .5, h * .3); } });
@@ -339,28 +297,28 @@ function setSound(enabled) {
 $('#sound').onclick = () => setSound(!sound);
 $('#volume').oninput = e => {
   volume = Number(e.target.value) / 100;
-  if (master) master.gain.setTargetAtTime(volume, audio.currentTime, .03);
   sampleElements.forEach(element => element.volume = volume);
   syncReactionAudio();
-  if (typeof syncCrackerVoiceVolume === 'function') syncCrackerVoiceVolume();
+  clipPlayers.forEach(player => player.volume = volume);
 };
 $('#finale').onclick = () => {
   if ($('#finale').disabled) return;
   $('#finale').disabled = true; toast('Sharma ji just closed all his windows.');
-  // An immediate first volley, then a compact crescendo with only one fountain.
-  for (let i = 0; i < 3; i++) launch(w * (.22 + i * .28), h * (.18 + i * .07), 'rocket');
-  for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'chakri' : 'rocket'), 140 + i * 115);
-  later(() => $('#finale').disabled = false, 140 + 11 * 115 + ROCKET_BURST * 1000);
-  if (typeof queueCrackerVoice === 'function') later(() => queueCrackerVoice('rocket', true), 140 + 11 * 115);
+  // A single complete Diwali track for the whole volley. Never fifteen overlapping voices.
+  playCracker('diwalibomb', duration => {
+    for (let i = 0; i < 3; i++) launch(w * (.22 + i * .28), h * (.18 + i * .07), 'rocket', false);
+    for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'chakri' : i === 9 ? 'diwalibomb' : 'rocket', false), 140 + i * 115);
+    later(() => $('#finale').disabled = false, Math.max(duration * 1000, 5000));
+  });
 };
-function clearSky() {
-  timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; shockwaves = []; projectiles = []; stopSounds();
+function clearSky(stopAudio = true) {
+  timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; shockwaves = []; projectiles = []; devices = []; if (stopAudio) stopSounds();
   if (typeof resetTosses === 'function') resetTosses();
   $('#finale').disabled = false; $('#sky-caption').style.opacity = '1';
   sky.classList.remove('celebrating', 'shake', 'heavy-impact'); partyUntil = 0; clearTimeout(neighbourTimer); $('#roof-comment').classList.remove('visible');
   ctx.clearRect(0, 0, w, h);
 }
-$('#clear-sky').onclick = clearSky;
+$('#clear-sky').onclick = () => clearSky();
 document.querySelectorAll('.roof-person').forEach(b => b.onclick = () => {
   if (typeof rooftopClick === 'function' && rooftopClick(b)) return;
   $('#sky-caption').style.opacity = '0'; rooftopReaction(true);
@@ -515,6 +473,5 @@ if(!reduced)later(()=>{burst(w*.76,h*.3,55,'#d9ae66',true)},650);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     cancelAnimationFrame(frame); clearSky(); stopReactions(); clearTimeout(toastTimer); $('#toast').classList.remove('show');
-    if (audio) audio.suspend().catch(() => {});
   } else { lastTime = performance.now(); frame = requestAnimationFrame(animate); }
 });
