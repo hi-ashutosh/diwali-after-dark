@@ -60,9 +60,9 @@ function setPlayMode(mode) {
   for (const [id, value] of [['sky-mode', 'sky'], ['fight-mode', 'fight']]) {
     $('#' + id).classList.toggle('chosen', value === mode); $('#' + id).setAttribute('aria-pressed', value === mode);
   }
-  $('#play-instruction').textContent = mode === 'fight' ? 'CHOOSE YOUR THROWER + PATAKHA, THEN TAP ANOTHER CHARACTER' : 'PICK A PATAKHA, THEN TAP THE SKY · SOUND ON FOR THE TMKOC REACTION';
+  $('#play-instruction').textContent = mode === 'fight' ? 'CHOOSE YOUR THROWER + PATAKHA, THEN TAP ANOTHER CHARACTER' : 'PICK A PATAKHA, THEN TAP THE SKY · SOUND ON FOR THE ORIGINAL PATAKHE';
   $('#sky-caption').querySelector('strong').innerHTML = mode === 'fight' ? 'Dosti apni jagah.<br>Badla apni jagah.' : 'Badi chhat.<br>Bade kaand.';
-  $('#sky-caption').querySelector('p').textContent = mode === 'fight' ? 'Tap a rooftop rival. They might return the favour.' : 'Pick a patakha. Seven patakhe. Four familiar Gokuldham voices.';
+  $('#sky-caption').querySelector('p').textContent = mode === 'fight' ? 'Tap a rooftop rival. They might return the favour.' : 'Pick a patakha. Seven patakhe. The original sounds are back.';
   updateThrower();
 }
 function updateThrower() {

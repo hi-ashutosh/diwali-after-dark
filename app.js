@@ -29,21 +29,22 @@ function resize() {
 }
 new ResizeObserver(resize).observe(sky);
 
-// One complete TMKOC clip per effect: no second phase, synthetic overlay or cut-off.
+// Dharmik's original cracker recordings, played intact with no dialogue overlays.
 const soundClips = {
-  diwali: {src:'assets/sounds/jethalal-diwali.m4a', duration:5.64, href:'https://humornama.com/memes/happy-diwali-jethalal-meme/'},
-  nonsense: {src:'assets/sounds/jetha-nonsense.mp3', duration:1.933, href:'https://www.voicy.network/sounds/XHcruaKeSk__6B55fQnDqQ-jetha-nonsense'},
-  babuchak: {src:'assets/sounds/babuchak-chup-re.mp3', duration:1.933, href:'https://www.voicy.network/sounds/1V9zV295Vkyey32Du_vq-A-babuchak-chup-re'},
-  mataji: {src:'assets/sounds/hey-ma-mataji.mp3', duration:2.795, href:'https://www.voicy.network/sounds/JLIVv7szYU_HATFNCklWGw-hey-ma-mataji'}
+  rocket: {src:'assets/sounds/rocket.mp3', duration:4.032},
+  bomb: {src:'assets/sounds/bomb.mp3', duration:3.528},
+  fizz: {src:'assets/sounds/fuljadi.mp3', duration:2.04},
+  ladi: {src:'assets/sounds/ladi.mp3', duration:2.04}
 };
+const ROCKET_BURST = 2.95, BOMB_BLASTS = [.3, 2.97];
 const crackerProfiles = {
-  rocket: {clip:'diwali', caption:'Jethalal ka Diwali rocket · seedha Gokuldham se'},
-  chakri: {clip:'nonsense', caption:'Chakri ko direction nahi mil rahi. “Nonsense!”'},
-  ladi: {clip:'babuchak', caption:'Itni bakbak? “Babuchak, chup re!”'},
-  greenbomb: {clip:'mataji', caption:'Ek bada dhamaka. “Hey Maa Mataji!”'},
-  mirchibomb: {clip:'babuchak', caption:'Teen mirchi dhamake. Babuchak ko chup karao!'},
-  sutlibomb: {clip:'nonsense', caption:'Sutli ka hungama. Jethalal: “Nonsense!”'},
-  diwalibomb: {clip:'diwali', caption:'Jethalal Diwali special · sona hi sona'}
+  rocket: {clip:'rocket', caption:'Rocket · the original whistle, bang and crackle'},
+  chakri: {clip:'fizz', caption:'Chakri · the original sizzling recording'},
+  ladi: {clip:'ladi', caption:'Ladi · the original rapid-fire recording'},
+  greenbomb: {clip:'bomb', caption:'Green bomb · the original two-bomb recording'},
+  mirchibomb: {clip:'bomb', caption:'Mirchi bomb · red bursts on the original two bangs'},
+  sutlibomb: {clip:'bomb', caption:'Sutli bomb · smoky impacts on the original two bangs'},
+  diwalibomb: {clip:'bomb', caption:'Diwali special · gold crowns on the original two bangs'}
 };
 const sampleElements = new Set(), clipPlayers = new Map();
 let audioGeneration = 0;
@@ -56,13 +57,11 @@ function prepareAudio() {
 function playCracker(type, effect) {
   const profile = crackerProfiles[type], clip = soundClips[profile.clip];
   $('#voice-caption').textContent = profile.caption;
-  $('#voice-credit').href = clip.href; $('#voice-credit').hidden = false;
-  if (!sound) { effect(clip.duration); return; }
-  prepareAudio(); const player = clipPlayers.get(profile.clip);
-  // A repeated click shares the remaining soundtrack; the sentence is never restarted.
-  if (!player.paused && !player.ended) {
-    effect(Math.max(.45, (Number.isFinite(player.duration) ? player.duration : clip.duration) - player.currentTime)); return;
-  }
+  $('#voice-credit').href = 'https://github.com/hi-ashutosh/diwali-after-dark/tree/dharmik-dev'; $('#voice-credit').hidden = false;
+  if (!sound || sampleElements.size >= 8) { effect(clip.duration); return; }
+  prepareAudio(); const ready = clipPlayers.get(profile.clip);
+  // Every launch starts at the beginning; an already-playing recording is left to finish.
+  const player = ready.paused || ready.ended ? ready : new Audio(clip.src);
   let started = false; const generation = audioGeneration;
   const start = () => { if (started || generation !== audioGeneration) return; started = true; effect(Number.isFinite(player.duration) ? player.duration : clip.duration); };
   player.currentTime = 0; player.volume = volume; sampleElements.add(player);
@@ -215,19 +214,19 @@ function shakeSky(strength = 1) {
   sky.style.setProperty('--jolt', strength); sky.classList.remove('shake'); void sky.offsetWidth; sky.classList.add('shake');
   later(() => sky.classList.remove('shake'), 420);
 }
-function launch(x = w * .5, y = h * .32, type = selected, audible = true) {
+function launch(x = w * .5, y = h * .32, type = selected, audible = true, elapsed = 0) {
   $('#sky-caption').style.opacity = '0'; count++;
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
   rooftopReaction();
-  const effect = duration => animateCracker(x, y, type, duration);
+  const effect = duration => animateCracker(x, y, type, duration, elapsed);
   if (audible) playCracker(type, effect);
   else effect(soundClips[crackerProfiles[type].clip].duration);
   if ([10, 25, 50, 100].includes(count)) toast(`${count} patakhe! Society committee ne emergency meeting bula li.`);
 }
-function animateCracker(x, y, type, duration) {
+function animateCracker(x, y, type, duration, elapsed = 0) {
   const ground = h - 42, ms = Math.max(450, duration * 1000);
   if (type === 'rocket') {
-    rockets.push({x, y:ground, ground, target:Math.max(50, Math.min(y, h * .57)), born:performance.now(), flight:ms * .52});
+    rockets.push({x, y:ground, ground, target:Math.max(50, Math.min(y, h * .57)), born:performance.now() - elapsed * 1000, flight:ROCKET_BURST * 1000});
   } else if (type === 'chakri') {
     const ticks = Math.ceil(ms / 45);
     for (let k = 0; k < ticks; k++) later(() => {
@@ -247,9 +246,7 @@ function animateCracker(x, y, type, duration) {
     }, k * ms * .92 / pops);
   } else {
     const palette = {greenbomb:'#b9ec97',mirchibomb:'#ff6454',sutlibomb:'#edba7a',diwalibomb:'#ffdc84'};
-    const color = palette[type], fuse = Math.min(950, ms * .3);
-    if (devices.length >= 12) devices.shift();
-    devices.push({x,y:ground,born:performance.now(),fuse,color});
+    const color = palette[type];
     const impact = (bx, by, scale = 1) => {
       flashes.push({x:bx,y:by,life:14,size:240 * scale,color});
       flower(bx, by, color, 95, 5 * scale, 80);
@@ -262,20 +259,29 @@ function animateCracker(x, y, type, duration) {
       smoke(bx, by, 3); shakeSky(scale);
       sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 500);
     };
-    if (type === 'mirchibomb') {
-      for (let i = 0; i < 3; i++) later(() => impact(x + (i - 1) * 32, ground - 12 - i * 17, .75), fuse + i * ms * .17);
-    } else if (type === 'diwalibomb') {
+    // Both blasts line up with the two bangs in the unchanged Bomb recording.
+    BOMB_BLASTS.forEach((at, bang) => {
+      const bx = Math.max(35, Math.min(w - 35, x + (bang ? 24 : -12))), fuse = bang ? 800 : at * 1000;
+      const lightFuse = () => {
+        if (devices.length >= 12) devices.shift();
+        devices.push({x:bx,y:ground,born:performance.now(),fuse,color});
+      };
+      if (bang) later(lightFuse, at * 1000 - fuse); else lightFuse();
       later(() => {
-        impact(x, h * .36, 1.25);
-        for (let i = 0; i < 5; i++) later(() => flower(x + Math.cos(i * .75 + .1) * Math.min(w * .24, 130), h * .3 + Math.sin(i * .75) * 45, '#ffd17e', 65, 3, 105, i), i * ms * .09);
-      }, fuse);
-    } else {
-      later(() => impact(x, ground - 20, type === 'sutlibomb' ? 1.5 : 1.2), fuse);
-      if (type === 'sutlibomb') for (let i = 0; i < 4; i++) later(() => {
-        smoke(x + (i - 1.5) * 22, ground - 30, 2);
-        burst(x + (i - 1.5) * 40, ground - 12, 14, '#edba7a');
-      }, fuse + 180 + i * 100);
-    }
+        if (type === 'mirchibomb') {
+          for (let i = 0; i < 3; i++) impact(bx + (i - 1) * 24, ground - 12 - i * 12, .65);
+        } else if (type === 'diwalibomb') {
+          impact(bx, h * .36, 1.25);
+          for (let i = 0; i < 5; i++) later(() => flower(bx + Math.cos(i * .75 + .1) * Math.min(w * .24, 130), h * .3 + Math.sin(i * .75) * 45, '#ffd17e', 65, 3, 105, i), i * 65);
+        } else {
+          impact(bx, ground - 20, type === 'sutlibomb' ? 1.5 : 1.2);
+          if (type === 'sutlibomb') for (let i = 0; i < 4; i++) later(() => {
+            smoke(bx + (i - 1.5) * 22, ground - 30, 2);
+            burst(bx + (i - 1.5) * 40, ground - 12, 14, '#edba7a');
+          }, 180 + i * 100);
+        }
+      }, at * 1000);
+    });
   }
 }
 canvas.addEventListener('pointerdown', e => { const r = canvas.getBoundingClientRect(); playgroundAction(e.clientX - r.left, e.clientY - r.top); });
@@ -304,10 +310,10 @@ $('#volume').oninput = e => {
 $('#finale').onclick = () => {
   if ($('#finale').disabled) return;
   $('#finale').disabled = true; toast('Sharma ji just closed all his windows.');
-  // A single complete Diwali track for the whole volley. Never fifteen overlapping voices.
-  playCracker('diwalibomb', duration => {
+  // One original Rocket recording for the volley; every rocket bursts on its recorded bang.
+  playCracker('rocket', duration => {
     for (let i = 0; i < 3; i++) launch(w * (.22 + i * .28), h * (.18 + i * .07), 'rocket', false);
-    for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'chakri' : i === 9 ? 'diwalibomb' : 'rocket', false), 140 + i * 115);
+    for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), 'rocket', false, (140 + i * 115) / 1000), 140 + i * 115);
     later(() => $('#finale').disabled = false, Math.max(duration * 1000, 5000));
   });
 };

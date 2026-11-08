@@ -71,7 +71,27 @@ for (const profile of Object.values(config.crackerProfiles)) {
   assert(clip && clip.duration > 1, 'Every cracker needs a complete assigned clip');
   assert(fs.statSync(__dirname + '/' + clip.src).size > 1000, 'Every clip must exist locally');
 }
-assert(fs.readFileSync(__dirname + '/' + config.soundClips.diwali.src).includes(Buffer.from('soun')), 'The new Diwali greeting must contain audio');
+const originalHashes = {
+  rocket:'b576841c219ddbdaba2e2f9cbcb480f90cf4e15e4207408a4031056acd3605ad',
+  bomb:'6c11b0f4c68d3fa3b5c6a1c194c24b01408b46bbd9a1e4fc1a03a29ef310fde1',
+  fizz:'37f8bd34842b2db9a00a4b6d01b56cd47404a2ee34ec7d2b3a8d576de90a19d7',
+  ladi:'283dfb6f8e90e0715dd2d005abb02d7513ce832ab632322d284e4fca48114d2c'
+};
+for (const [key, hash] of Object.entries(originalHashes)) {
+  assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(__dirname + '/' + config.soundClips[key].src)).digest('hex'), hash, 'Restore the exact original '+key+' recording');
+}
+assert.deepEqual(Array.from(Object.values(config.crackerProfiles).map(p=>p.clip)), ['rocket','fizz','ladi','bomb','bomb','bomb','bomb']);
+assert(!source.includes('jethalal-diwali') && !source.includes('jetha-nonsense') && !source.includes('babuchak-chup-re'), 'Rejected audio must not be used in the playground');
+const cueTasks=[], blasts=[], choreography=vm.createContext({
+  h:400,w:600,reduced:true,performance:{now:()=>0},devices:[],rockets:[],flashes:[],BOMB_BLASTS:[.3,2.97],ROCKET_BURST:2.95,
+  later:(fn,ms)=>cueTasks.push({fn,ms}),flower:(x,y)=>blasts.push({x,y}),smoke(){},shakeSky(){},
+  sky:{classList:{add(){},remove(){}}}
+});
+vm.runInContext(source.slice(source.indexOf('function animateCracker('),source.indexOf("canvas.addEventListener('pointerdown'"))+";animateCracker(300,80,'greenbomb',3.528);",choreography);
+for (const ms of [300,2970]) { const cue=cueTasks.find(t=>t.ms===ms);assert(cue,'Each recorded bomb bang needs an exact visual cue');cue.fn(); }
+assert.equal(blasts.length,2,'The original two-bomb track must produce two major impacts');
+vm.runInContext("animateCracker(300,80,'rocket',4.032);",choreography);
+assert.equal(choreography.rockets[0].flight,2950,'Rocket must burst on the original recorded bang');
 vm.runInContext(`rockets.push({x:100,y:h-42,ground:h-42,target:50,born:92,flight:2900});animate(592);globalThis.rocketY=rockets[0].y;`, context);
 assert(Number.isFinite(context.rocketY) && context.rocketY > 50 && context.rocketY < 318, 'Rocket flight must remain finite and clock-driven');
 (async () => {
@@ -87,14 +107,18 @@ assert(Number.isFinite(context.rocketY) && context.rocketY > 50 && context.rocke
   });
   vm.runInContext(source.slice(configStart, source.indexOf('function add(')) + `
     playCracker('ladi', d => result.push(d));
-    clipPlayers.get('babuchak').currentTime=1;
-    playCracker('mirchibomb', d => result.push(d));
+    clipPlayers.get('ladi').currentTime=1;
+    playCracker('ladi', d => result.push(d));
   `, runtime);
   await Promise.resolve();
-  assert.equal(players.find(p=>p.src.includes('babuchak')).plays,1, 'Shared sounds must never restart mid-line');
-  assert.deepEqual(Array.from(runtime.result),[3.25,2.25], 'Visual timing must follow actual metadata and remaining playback');
-  assert.equal(players.filter(p=>p.plays).length,1, 'One clip per cracker, with no synthetic or delayed second track');
+  const played=players.filter(p=>p.plays);
+  assert.equal(played.length,2,'Repeated launches must each play the original recording');
+  assert.equal(played[0].currentTime,1,'A new launch must not rewind an existing recording');
+  assert.equal(played[1].currentTime,0,'A new launch must start its own complete recording');
+  assert.deepEqual(Array.from(runtime.result),[3.25,3.25],'Each visual effect must use the full loaded clip duration');
+  for(let i=0;i<12;i++) vm.runInContext("playCracker('ladi',()=>{})",runtime);
+  assert.equal(players.filter(p=>p.plays).length,8,'Rapid launches must bound concurrent playback without stopping active recordings');
   vm.runInContext('stopSounds()',runtime);
   assert(players.every(p=>p.paused),'Explicit mute/clear must stop active sounds');
-  console.log('Passed: seven fixed pairings, four real audio assets, natural clip playback, repeat-click continuity, and duration-driven choreography.');
+  console.log('Passed: four exact original recordings, seven restored pairings, recorded blast timing, complete repeat-click playback, and bounded audio concurrency.');
 })().catch(error => { console.error(error); process.exitCode=1; });
