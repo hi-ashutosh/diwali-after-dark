@@ -84,7 +84,7 @@ assert.deepEqual(Array.from(Object.values(config.crackerProfiles).map(p=>p.clip)
 assert(!source.includes('jethalal-diwali') && !source.includes('jetha-nonsense') && !source.includes('babuchak-chup-re'), 'Rejected audio must not be used in the playground');
 const cueTasks=[], blasts=[], choreography=vm.createContext({
   h:400,w:600,reduced:true,performance:{now:()=>0},devices:[],rockets:[],flashes:[],BOMB_BLASTS:[.3,2.97],ROCKET_BURST:2.95,CHAKRI_TAIL:.6,
-  later:(fn,ms)=>cueTasks.push({fn,ms}),flower:(x,y)=>blasts.push({x,y}),smoke(){},shakeSky(){},
+  later:(fn,ms)=>cueTasks.push({fn,ms}),bombBurst:(x,y)=>blasts.push({x,y}),smoke(){},shakeSky(){},
   sky:{classList:{add(){},remove(){}}}
 });
 vm.runInContext(source.slice(source.indexOf('function animateCracker('),source.indexOf("canvas.addEventListener('pointerdown'"))+";animateCracker(300,80,'greenbomb',3.528);",choreography);
@@ -107,6 +107,26 @@ assert(sizzleRms(2.54,2.64)<sizzleRms(1.8,1.9)*.1,'Chakri must fade smoothly to 
 assert.equal(pcm.readInt16LE(pcm.length-2),0,'The final audio sample must end at silence');
 vm.runInContext(`rockets.push({x:100,y:h-42,ground:h-42,target:50,born:92,flight:2900});animate(592);globalThis.rocketY=rockets[0].y;`, context);
 assert(Number.isFinite(context.rocketY) && context.rocketY > 50 && context.rocketY < 318, 'Rocket flight must remain finite and clock-driven');
+// Verify the actual emitted shapes have different geometry and preserve rendering caps.
+const blastCode=source.slice(source.indexOf('function bombBurst('),source.indexOf('function launch('));
+vm.runInContext(blastCode + `
+  function shakeSky() {}
+  sky.classList.add=()=>{};
+  globalThis.bombShapes={};
+  for(const type of ['greenbomb','mirchibomb','sutlibomb','diwalibomb']){
+    particles=[];shockwaves=[];flashes=[];
+    bombBurst(300,300,type);
+    bombShapes[type]={sparks:particles.filter(p=>!p.smoke),smoke:particles.filter(p=>p.smoke).length,rings:shockwaves.slice()};
+  }
+`,context);
+const shapes=context.bombShapes;
+assert(shapes.greenbomb.rings.every(r=>r.squash===1) && shapes.greenbomb.sparks.some(p=>p.vy>0),'Green bomb needs a round pressure sphere');
+assert.equal(shapes.mirchibomb.rings.length,0,'Mirchi must avoid the generic circular shockwave');
+assert(shapes.mirchibomb.sparks.every(p=>p.vy<0),'Mirchi must launch its fans upward');
+assert(shapes.sutlibomb.rings.every(r=>r.squash<=.3) && shapes.sutlibomb.smoke>=6,'Sutli needs flat ground waves and a dusty plume');
+assert(new Set(shapes.diwalibomb.sparks.map(p=>Math.round(p.x))).size>=7 && shapes.diwalibomb.sparks.every(p=>p.life>=112),'Diwali special needs separated, long-lived willow lobes');
+for(const shape of Object.values(shapes)) assert(shape.sparks.length+shape.smoke<=1000,'Distinct bombs must respect the existing particle cap');
+console.log('Passed: four different bomb silhouettes and physics with bounded particle counts.');
 (async () => {
   const players = [], nodes = new Map();
   const runtime = vm.createContext({

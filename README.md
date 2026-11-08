@@ -78,7 +78,7 @@ With Node installed, run `node checks.cjs`. Checks cover real elapsed time after
 
 Recorded firecracker audio and Bomb choreography adapted from Dharmik’s commits `87ef472` and `9669cad`, retaining the expanded arena and cartoon toss mode.
 
-Green bomb and the three new bomb variants use the original two-bomb recording, with both visual impacts timed to its bangs. Original icons and improved blast effects preserve reduced-motion support and the particle budget.
+Green bomb and the three new bomb variants use the original two-bomb recording, with both visual impacts timed to its bangs. Their silhouettes differ: Green has round emerald/cyan pressure shells; Mirchi has five upward red comet fans; Sutli has a white-hot ground punch, flat expanding dust rings and a smoky plume; Diwali special has a high, falling golden willow canopy. All crackers have thicker double-stroked trails, larger coloured spark heads and white-hot cores, with the same particle caps and cached glow rendering. Original icons and improved blast effects preserve reduced-motion support and the particle budget.
 
 ## Original firecracker audio
 

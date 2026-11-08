@@ -140,7 +140,7 @@ function animate(time) {
   ctx.globalCompositeOperation = 'source-over';
   for (const p of particles) if (p.smoke) {
     const radius = p.size + (p.max - p.life) * .12;
-    ctx.globalAlpha = p.life / p.max * .08;
+    ctx.globalAlpha = p.life / p.max * (p.opacity || .1);
     ctx.drawImage(glowSprite(p.color), p.x - radius, p.y - radius, radius * 2, radius * 2);
   }
   ctx.globalCompositeOperation = 'lighter';
@@ -152,25 +152,35 @@ function animate(time) {
   }
   for (let i = shockwaves.length - 1; i >= 0; i--) {
     const ring = shockwaves[i]; ring.age += dt;
-    if (ring.age > 24) { shockwaves.splice(i, 1); continue; }
-    ctx.globalAlpha = (1 - ring.age / 24) * .48; ctx.strokeStyle = ring.color; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(ring.x, ring.y, (12 + ring.age * 5) * ring.scale, 0, Math.PI * 2); ctx.stroke();
+    const duration = ring.duration || 24;
+    if (ring.age > duration) { shockwaves.splice(i, 1); continue; }
+    const radius = (12 + ring.age * (ring.speed || 5)) * ring.scale;
+    ctx.globalAlpha = (1 - ring.age / duration) * .65; ctx.strokeStyle = ring.color; ctx.lineWidth = ring.width || 3;
+    ctx.beginPath(); ctx.ellipse(ring.x, ring.y, radius, radius * (ring.squash || 1), 0, 0, Math.PI * 2); ctx.stroke();
   }
   // Batch trails by colour: a handful of canvas strokes replaces thousands.
-  ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+  ctx.lineCap = 'round';
   for (const color of sparkColors) {
-    ctx.strokeStyle = color; ctx.globalAlpha = .38; ctx.beginPath();
+    ctx.strokeStyle = color; ctx.beginPath();
     for (const p of particles) if (!p.smoke && p.color === color && p.life > 12) {
-      ctx.moveTo(p.x - p.vx * 3.2, p.y - p.vy * 3.2); ctx.lineTo(p.x, p.y);
+      ctx.moveTo(p.x - p.vx * 4.2, p.y - p.vy * 4.2); ctx.lineTo(p.x, p.y);
     }
-    ctx.stroke();
-    ctx.fillStyle = color; ctx.globalAlpha = .9; ctx.beginPath();
+    ctx.lineWidth = reduced ? 3 : 5.5; ctx.globalAlpha = .15; ctx.stroke();
+    ctx.lineWidth = reduced ? 1.8 : 2.6; ctx.globalAlpha = .78; ctx.stroke();
+    ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.beginPath();
     for (const p of particles) if (!p.smoke && p.color === color) {
-      const size = p.size * Math.min(1, p.life / 16);
+      const size = p.size * 1.7 * Math.min(1, p.life / 16);
       ctx.rect(p.x - size / 2, p.y - size / 2, p.confetti ? size * 1.7 : size, size);
     }
     ctx.fill();
   }
+  // White-hot centres keep the thicker coloured sparks crisp, in one shared draw call.
+  ctx.fillStyle = '#fff8df'; ctx.globalAlpha = .95; ctx.beginPath();
+  for (const p of particles) if (!p.smoke && p.life > 6) {
+    const size = p.size * .65 * Math.min(1, p.life / 16);
+    ctx.rect(p.x - size / 2, p.y - size / 2, size, size);
+  }
+  ctx.fill();
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   if (partyUntil && time > partyUntil) { sky.classList.remove('celebrating', 'shake', 'heavy-impact'); partyUntil = 0; }
 }
@@ -214,6 +224,57 @@ function shakeSky(strength = 1) {
   sky.style.setProperty('--jolt', strength); sky.classList.remove('shake'); void sky.offsetWidth; sky.classList.add('shake');
   later(() => sky.classList.remove('shake'), 420);
 }
+// Different silhouettes and physics, not recoloured copies of one radial burst.
+function bombBurst(x, y, type) {
+  const total = reduced ? 14 : Math.min(125, Math.floor(particleBudget * .17));
+  const ring = (color, scale, squash = 1, speed = 5, width = 3) => {
+    if (reduced) return;
+    if (shockwaves.length >= 12) shockwaves.shift();
+    shockwaves.push({x,y,age:0,color,scale,squash,speed,width,duration:30});
+  };
+  const flash = (color, size) => { if (!reduced) flashes.push({x,y,life:12,size,color}); };
+  if (type === 'greenbomb') {
+    // A round emerald pressure sphere with a bright cyan inner shell.
+    y -= 70; flash('#84ffd1', 230);
+    ring('#84ffd1', 1.2); ring('#caffef', .74, 1, 6, 4);
+    for (let i = 0; i < total; i++) {
+      const a = i / total * Math.PI * 2, speed = i % 3 ? 6 : 3.7;
+      add(x,y,Math.cos(a)*speed,Math.sin(a)*speed,i % 4 ? '#75efab' : '#bdfff2',68,2.6,.025,{drag:.99});
+    }
+    shakeSky(1.2);
+  } else if (type === 'mirchibomb') {
+    // Five narrow red comet fans: all energy goes upward, with no circular halo.
+    flash('#ff7553', 140);
+    for (let i = 0; i < total; i++) {
+      const spoke = i % 5, a = -Math.PI + .3 + spoke * (Math.PI - .6) / 4 + (Math.random() - .5) * .11;
+      const speed = 4 + Math.random() * 7;
+      add(x + (spoke - 2) * 10,y,Math.cos(a)*speed,Math.sin(a)*speed,i % 4 ? '#ff514f' : '#ffb04f',55 + Math.random()*20,2.7,.085,{drag:.988});
+    }
+    shakeSky(.85);
+  } else if (type === 'sutlibomb') {
+    // A white-hot ground punch, wide elliptical pressure waves and a dusty plume.
+    flash('#fff3cf', 300); ring('#f4d6a1',1.8,.2,7,4); ring('#fff6dd',1.15,.3,6,3);
+    for (let i = 0; i < total; i++) {
+      const a = -Math.PI + Math.random()*Math.PI, speed = 2 + Math.random()*8;
+      add(x,y,Math.cos(a)*speed,Math.sin(a)*speed*.8,i % 3 ? '#ffc285' : '#fff8df',48 + Math.random()*20,3.2,.18,{drag:.978});
+    }
+    if (!reduced) for (let i = 0; i < 8 && particles.filter(p=>p.smoke).length < 20; i++) {
+      add(x + (i-3.5)*13,y-12,(i-3.5)*.35,-.8-Math.random(), '#b6a398',100,15,-.005,{smoke:true,opacity:.22});
+    }
+    shakeSky(1.7);
+  } else if (type === 'diwalibomb') {
+    // A high golden willow canopy: separated lobes leave long, falling ribbons.
+    y = h * .34; flash('#ffdf8a',220);
+    for (let i = 0; i < total; i++) {
+      const lobe = i % 7, spread = (lobe-3)/3, a = -Math.PI/2 + spread*1.32;
+      const speed = 3.8 + Math.random()*2.8;
+      add(x + spread * Math.min(w*.19,110),y + Math.abs(spread)*22,
+        Math.cos(a)*speed,Math.sin(a)*speed,i % 4 ? '#ffd36f' : '#fff5c6',112 + Math.random()*20,2.4,.095,{drag:.995});
+    }
+    shakeSky(.8);
+  }
+  sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 500);
+}
 function launch(x = w * .5, y = h * .32, type = selected, audible = true, elapsed = 0) {
   $('#sky-caption').style.opacity = '0'; count++;
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
@@ -248,18 +309,6 @@ function animateCracker(x, y, type, duration, elapsed = 0) {
   } else {
     const palette = {greenbomb:'#b9ec97',mirchibomb:'#ff6454',sutlibomb:'#edba7a',diwalibomb:'#ffdc84'};
     const color = palette[type];
-    const impact = (bx, by, scale = 1) => {
-      flashes.push({x:bx,y:by,life:14,size:240 * scale,color});
-      flower(bx, by, color, 95, 5 * scale, 80);
-      if (!reduced) {
-        for (const offset of [0, 90, 200]) later(() => {
-          if (shockwaves.length < 12) shockwaves.push({x:bx,y:by,age:0,color,scale:1.5 * scale});
-        }, offset);
-        for (let j = 0; j < 22; j++) add(bx, by, (Math.random() - .5) * 11, -2 - Math.random() * 7, j % 3 ? color : '#fff8d7', 70, 2, .12);
-      }
-      smoke(bx, by, 3); shakeSky(scale);
-      sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 500);
-    };
     // Both blasts line up with the two bangs in the unchanged Bomb recording.
     BOMB_BLASTS.forEach((at, bang) => {
       const bx = Math.max(35, Math.min(w - 35, x + (bang ? 24 : -12))), fuse = bang ? 800 : at * 1000;
@@ -269,18 +318,7 @@ function animateCracker(x, y, type, duration, elapsed = 0) {
       };
       if (bang) later(lightFuse, at * 1000 - fuse); else lightFuse();
       later(() => {
-        if (type === 'mirchibomb') {
-          for (let i = 0; i < 3; i++) impact(bx + (i - 1) * 24, ground - 12 - i * 12, .65);
-        } else if (type === 'diwalibomb') {
-          impact(bx, h * .36, 1.25);
-          for (let i = 0; i < 5; i++) later(() => flower(bx + Math.cos(i * .75 + .1) * Math.min(w * .24, 130), h * .3 + Math.sin(i * .75) * 45, '#ffd17e', 65, 3, 105, i), i * 65);
-        } else {
-          impact(bx, ground - 20, type === 'sutlibomb' ? 1.5 : 1.2);
-          if (type === 'sutlibomb') for (let i = 0; i < 4; i++) later(() => {
-            smoke(bx + (i - 1.5) * 22, ground - 30, 2);
-            burst(bx + (i - 1.5) * 40, ground - 12, 14, '#edba7a');
-          }, 180 + i * 100);
-        }
+        bombBurst(bx, ground - 18, type);
       }, at * 1000);
     });
   }
