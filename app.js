@@ -7,12 +7,23 @@ let w = 0, h = 0, particles = [], rockets = [], flashes = [], count = 0;
 let selected = 'rocket', sound = false, audio, master, noiseBuffer, frame, lastTime = 0;
 let volume = .45, partyUntil = 0, neighbourTimer, lastComment = 0;
 const timers = new Set(), audioSources = new Set();
+const smallDevice = matchMedia('(max-width: 700px)').matches || navigator.hardwareConcurrency <= 4;
+let particleBudget = reduced ? 160 : smallDevice ? 650 : 1000;
+let frameAverage = 16.67, lastQualityCheck = 0;
+const sparkColors = new Set(), glowSprites = new Map();
+function glowSprite(color) {
+  if (glowSprites.has(color)) return glowSprites.get(color);
+  const sprite = document.createElement('canvas'); sprite.width = sprite.height = 64;
+  const brush = sprite.getContext('2d'), gradient = brush.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, color); gradient.addColorStop(1, 'transparent');
+  brush.fillStyle = gradient; brush.fillRect(0, 0, 64, 64); glowSprites.set(color, sprite); return sprite;
+}
 function later(fn, ms) {
   const id = setTimeout(() => { timers.delete(id); fn(); }, ms);
   timers.add(id); return id;
 }
 function resize() {
-  const d = Math.min(devicePixelRatio || 1, 2);
+  const d = Math.min(devicePixelRatio || 1, smallDevice ? 1 : 1.5);
   w = sky.clientWidth; h = sky.clientHeight;
   canvas.width = w * d; canvas.height = h * d; ctx.setTransform(d, 0, 0, d, 0, 0);
 }
@@ -87,18 +98,18 @@ function soundEffect(kind, x = w / 2) {
     }
   } catch { sound = false; $('#sound').textContent = '♪ Sound off'; $('#sound').setAttribute('aria-pressed', 'false'); toast('Your browser is keeping this Diwali silent.'); }
 }
-function beep() { soundEffect('pop'); }
 function add(x, y, vx, vy, color, life = 65, size = 1.5, gravity = .055, extra = {}) {
-  if (particles.length >= (reduced ? 350 : 2400)) return;
-  particles.push({x, y, vx, vy, color, life, max: life, size, gravity, drag: .985, trail: [], ...extra});
+  if (particles.length >= particleBudget) return;
+  sparkColors.add(color);
+  particles.push({x, y, vx, vy, color, life, max: life, size, gravity, drag: .985, ...extra});
 }
 function smoke(x, y, amount = 3) {
-  if (reduced) return;
-  for (let i = 0; i < amount; i++) add(x, y, .15 + Math.random() * .2, -.15 - Math.random() * .2, '#a8a0b2', 100 + Math.random() * 60, 5, -.001, {smoke: true});
+  if (reduced || particles.filter(p => p.smoke).length >= 20) return;
+  for (let i = 0; i < Math.min(amount, 2); i++) add(x, y, .15 + Math.random() * .2, -.15 - Math.random() * .2, '#a8a0b2', 100 + Math.random() * 60, 5, -.001, {smoke: true});
 }
 function burst(x, y, n = 130, color = colors[Math.floor(Math.random() * colors.length)], quiet = false) {
   if (!quiet) soundEffect(n > 60 ? 'boom' : 'pop', x);
-  const shape = Math.floor(Math.random() * 3), total = reduced ? Math.min(n, 22) : n;
+  const shape = Math.floor(Math.random() * 3), total = reduced ? Math.min(n, 18) : Math.min(n, Math.round(particleBudget * .12));
   flashes.push({x, y, life: reduced ? 0 : 9, size: n > 60 ? 95 : 35, color});
   for (let i = 0; i < total; i++) {
     const a = Math.PI * 2 * i / total;
@@ -106,51 +117,68 @@ function burst(x, y, n = 130, color = colors[Math.floor(Math.random() * colors.l
     const gold = shape === 2;
     add(x, y, Math.cos(a) * speed, Math.sin(a) * speed, gold ? '#ffd591' : color,
       gold ? 95 + Math.random() * 45 : 55 + Math.random() * 45, 1 + Math.random(), gold ? .045 : .035,
-      {twinkle: Math.random() > .6, drag: gold ? .991 : .984});
+      {drag: gold ? .991 : .984});
     if (i % 8 === 0) add(x, y, Math.cos(a) * speed * .6, Math.sin(a) * speed * .6, '#fff8d7', 35, 2, .04);
   }
   smoke(x, y, n > 60 ? 5 : 2);
 }
 function animate(time) {
   frame = requestAnimationFrame(animate);
-  if (time - lastTime < 15) return;
-  const dt = Math.min((time - lastTime) / 16.67, 2); lastTime = time;
+  const elapsed = lastTime ? time - lastTime : 16.67;
+  lastTime = time;
+  // Elapsed time drives physics; dropped frames never put the show into slow motion.
+  const dt = elapsed / 16.67;
+  frameAverage = frameAverage * .95 + elapsed * .05;
+  if (!reduced && time - lastQualityCheck > 900) {
+    if (frameAverage > 23) particleBudget = Math.max(320, Math.round(particleBudget * .8));
+    else if (frameAverage < 18) particleBudget = Math.min(smallDevice ? 650 : 1000, particleBudget + 40);
+    lastQualityCheck = time;
+  }
+  if (!particles.length && !rockets.length && !flashes.length && !partyUntil) return;
   ctx.clearRect(0, 0, w, h);
   for (let i = rockets.length - 1; i >= 0; i--) {
-    const r = rockets[i]; r.speed *= Math.pow(.993, dt); r.y -= r.speed * dt;
-    const wobble = Math.sin(time * .025) * .4;
-    for (let k = 0; k < (reduced ? 1 : 4); k++) add(r.x + wobble, r.y, (Math.random() - .5) * .5, 1 + Math.random() * 1.2, k % 2 ? '#ff9e52' : '#fff3bd', 22 + Math.random() * 12, 1.2, .012);
-    if (r.y <= r.target) { burst(r.x, r.y); rockets.splice(i, 1); }
+    const r = rockets[i]; r.y -= r.speed * dt;
+    for (let k = 0; k < (reduced ? 1 : 2); k++) add(r.x, r.y, (Math.random() - .5) * .5, 1 + Math.random(), k % 2 ? '#ff9e52' : '#fff3bd', 24, 1.2, .012);
+    if (r.y <= r.target) { burst(r.x, r.target); rockets.splice(i, 1); }
   }
-  // Soft smoke drifts behind the luminous sparks.
+  // Compact survivors in place: no per-spark arrays, shifts or splice allocations.
+  let alive = 0;
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i]; p.life -= dt;
+    if (p.life <= 0 || p.y > h + 20) continue;
+    const damping = Math.pow(p.drag, dt);
+    p.x += p.vx * dt; p.y += p.vy * dt + p.gravity * dt * dt * .5;
+    p.vx *= damping; p.vy = p.vy * damping + p.gravity * dt;
+    particles[alive++] = p;
+  }
+  particles.length = alive;
   ctx.globalCompositeOperation = 'source-over';
   for (const p of particles) if (p.smoke) {
-    ctx.globalAlpha = Math.min(.09, p.life / p.max * .09);
     const radius = p.size + (p.max - p.life) * .12;
-    const haze = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-    haze.addColorStop(0, p.color); haze.addColorStop(1, 'transparent'); ctx.fillStyle = haze;
-    ctx.fillRect(p.x - radius, p.y - radius, radius * 2, radius * 2);
+    ctx.globalAlpha = p.life / p.max * .08;
+    ctx.drawImage(glowSprite(p.color), p.x - radius, p.y - radius, radius * 2, radius * 2);
   }
   ctx.globalCompositeOperation = 'lighter';
   for (let i = flashes.length - 1; i >= 0; i--) {
     const f = flashes[i]; f.life -= dt;
     if (f.life <= 0) { flashes.splice(i, 1); continue; }
-    const glow = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.size);
-    glow.addColorStop(0, f.color); glow.addColorStop(1, 'transparent');
-    ctx.globalAlpha = f.life / 9 * .25; ctx.fillStyle = glow;
-    ctx.fillRect(f.x - f.size, f.y - f.size, f.size * 2, f.size * 2);
+    ctx.globalAlpha = f.life / 9 * .25;
+    ctx.drawImage(glowSprite(f.color), f.x - f.size, f.y - f.size, f.size * 2, f.size * 2);
   }
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i]; p.trail.push([p.x, p.y]); if (p.trail.length > 5) p.trail.shift();
-    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.pow(p.drag, dt); p.vy = p.vy * Math.pow(p.drag, dt) + p.gravity * dt; p.life -= dt;
-    if (p.life <= 0 || p.y > h + 20) { particles.splice(i, 1); continue; }
-    if (p.smoke) continue;
-    const alpha = Math.min(1, p.life / 28) * (p.twinkle && p.life < 40 ? .35 + Math.random() * .65 : 1);
-    ctx.strokeStyle = p.color; ctx.lineWidth = p.size; ctx.lineCap = 'round';
-    ctx.globalAlpha = alpha * .35; ctx.beginPath();
-    p.trail.forEach(([x, y], j) => j ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-    ctx.lineTo(p.x, p.y); ctx.stroke();
-    ctx.globalAlpha = alpha; ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  // Batch trails by colour: a handful of canvas strokes replaces thousands.
+  ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+  for (const color of sparkColors) {
+    ctx.strokeStyle = color; ctx.globalAlpha = .38; ctx.beginPath();
+    for (const p of particles) if (!p.smoke && p.color === color && p.life > 12) {
+      ctx.moveTo(p.x - p.vx * 3.2, p.y - p.vy * 3.2); ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = color; ctx.globalAlpha = .9; ctx.beginPath();
+    for (const p of particles) if (!p.smoke && p.color === color) {
+      const size = p.size * Math.min(1, p.life / 16);
+      ctx.rect(p.x - size / 2, p.y - size / 2, size, size);
+    }
+    ctx.fill();
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   if (partyUntil && time > partyUntil) { sky.classList.remove('celebrating'); partyUntil = 0; }
@@ -169,12 +197,12 @@ function launch(x = w * .5, y = h * .32, type = selected) {
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
   rooftopReaction(); const ground = h - 42;
   if (type === 'rocket') {
-    soundEffect('rocket', x); rockets.push({x, y: ground, target: Math.max(32, Math.min(y, h * .57)), speed: 5.8 + Math.random()});
+    soundEffect('rocket', x); rockets.push({x, y: ground, target: Math.max(32, Math.min(y, h * .57)), speed: 8.5 + Math.random() * 1.5});
   } else if (type === 'anaar') {
     soundEffect('anaar', x);
     for (let k = 0; k < 42; k++) later(() => {
       const strength = Math.sin(Math.PI * (k + 3) / 46);
-      for (let i = 0; i < (reduced ? 2 : 9); i++) {
+      for (let i = 0; i < (reduced ? 2 : 6); i++) {
         const a = -Math.PI / 2 + (Math.random() - .5) * .7, speed = (2.5 + Math.random() * 4.2) * strength;
         add(x, ground, Math.cos(a) * speed, Math.sin(a) * speed, Math.random() > .3 ? '#ffcb70' : '#fff6c6', 52 + Math.random() * 28, 1.3, .075);
       }
@@ -205,17 +233,28 @@ document.querySelectorAll('.cracker').forEach(b => b.addEventListener('click', (
   document.querySelectorAll('.cracker').forEach(c => { const active = c === b; c.classList.toggle('active', active); c.setAttribute('aria-pressed', active); });
   launch(w * .55, h * .3, selected);
 }));
-$('#sound').onclick = () => {
-  sound = !sound; $('#sound').textContent = sound ? '♪ Sound on' : '♪ Sound off'; $('#sound').setAttribute('aria-pressed', sound);
-  if (sound) { try { prepareAudio(); } catch { sound = false; $('#sound').textContent = '♪ Sound off'; $('#sound').setAttribute('aria-pressed', 'false'); toast('Audio is unavailable in this browser.'); } }
-  else stopSounds();
+function setSound(enabled) {
+  sound = enabled;
+  if (sound) {
+    try { prepareAudio(); }
+    catch { sound = false; toast('Audio is unavailable in this browser.'); }
+  } else stopSounds();
+  $('#sound').textContent = sound ? '♪ Sound on' : '♪ Sound off';
+  $('#sound').setAttribute('aria-pressed', sound); syncReactionAudio();
+}
+$('#sound').onclick = () => setSound(!sound);
+$('#volume').oninput = e => {
+  volume = Number(e.target.value) / 100;
+  if (master) master.gain.setTargetAtTime(volume, audio.currentTime, .03);
+  syncReactionAudio();
 };
-$('#volume').oninput = e => { volume = Number(e.target.value) / 100; if (master) master.gain.setTargetAtTime(volume, audio.currentTime, .03); };
 $('#finale').onclick = () => {
   if ($('#finale').disabled) return;
   $('#finale').disabled = true; toast('Sharma ji just closed all his windows.');
-  for (let i = 0; i < 18; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i % 5 === 0 ? 'anaar' : 'rocket'), i * 210);
-  later(() => $('#finale').disabled = false, 4500);
+  // An immediate first volley, then a compact crescendo with only one fountain.
+  for (let i = 0; i < 3; i++) launch(w * (.22 + i * .28), h * (.18 + i * .07), 'rocket');
+  for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'anaar' : 'rocket'), 140 + i * 115);
+  later(() => $('#finale').disabled = false, 2600);
 };
 function clearSky() {
   timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; stopSounds();
@@ -233,51 +272,67 @@ requestAnimationFrame(animate);
 let toastTimer;
 function toast(t) { $('#toast').textContent = t; $('#toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 3300); }
 const dialog=$('#game-dialog'),content=$('#game-content');let previousFocus;
-function openGame(game){previousFocus=document.activeElement;content.replaceChildren();if(game==='papdi')resetPapdi();if(game==='family')family();if(game==='bonus')bonus();dialog.showModal()}
+function openGame(game){previousFocus=document.activeElement;stopReactions();clearSky();content.replaceChildren();if(game==='papdi')resetPapdi();if(game==='family')family();if(game==='bonus')bonus();dialog.showModal()}
 document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>openGame(b.dataset.game));
-$('#close-dialog').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});dialog.addEventListener('close',()=>previousFocus?.focus());
-const reactions = [
-  {src: 'https://media1.tenor.com/m/fVBphFK19H8AAAAC/jethalal-jethalal-shocked.gif', alt: 'Jethalal looks completely shocked', title: 'Jethalal / TMKOC · Tenor', href: 'https://tenor.com/view/jethalal-jethalal-shocked-shocked-face-reaction-what-what-what-gif-19739068'},
-  {src: 'https://media1.tenor.com/m/zezKeW8RSv8AAAAC/paisa-hi-paisa-hoga.gif', alt: 'Raju celebrates his big plan in Phir Hera Pheri', title: 'Phir Hera Pheri · Tenor', href: 'https://tenor.com/view/paisa-hi-paisa-hoga-gif-22249471'},
-  {src: 'https://media1.tenor.com/m/tbnePOd_Gf4AAAAC/control-control-uday.gif', alt: 'Uday tries very hard to keep his cool in Welcome', title: 'Welcome / Control Uday · Tenor', href: 'https://tenor.com/en-IN/view/control-control-uday-control-uday-control-welcome-bas-kar-gif-13094741744719698430'},
-  {src: 'https://media1.tenor.com/m/xoVXud0uxOgAAAAC/miracle-miracle-miracle.gif', alt: 'Akshay Kumar reacts to a miracle in Welcome', title: 'Welcome / Miracle · Tenor', href: 'https://tenor.com/view/miracle-miracle-miracle-saloniie-akshay-kumar-welcome-gif-14491263'}
-];
+$('#close-dialog').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});dialog.addEventListener('close',()=>{stopReactions();previousFocus?.focus()});
+const reactions = {
+  control: {src: 'assets/control-uday.mp4', title: 'Control Uday · Welcome', href: 'https://templates.meme/templates/control-uday', line: 'Control, Uday. Control.'},
+  confused: {src: 'assets/yeh-kya-hai.mp4', title: 'Yeh kya hai? · CarryMinati', href: 'https://templates.meme/templates/yeh-kya-hai', line: 'Yeh kya hai?!'},
+  wasted: {src: 'assets/paisa-barbad.mp4', title: 'Paisa barbad · CarryMinati', href: 'https://templates.meme/templates/paisa-barbad', line: 'Toh paisa barbad!'},
+  fun: {src: 'assets/abhi-maza-ayega-na-bhidu.mp4', title: 'Abhi maza ayega · Phir Hera Pheri', href: 'https://templates.meme/templates/abhi-maza-ayega-na-bhidu', line: 'Abhi maza ayega na, bhidu!'}
+};
 function shuffled(list) {
   const copy = [...list];
   for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; }
   return copy;
 }
-let reactionBag = [], lastReaction = -1;
-function reaction(target = content) {
-  if (!reactionBag.length) {
-    reactionBag = shuffled(reactions.map((_, i) => i));
-    if (reactionBag[0] === lastReaction) [reactionBag[0], reactionBag[1]] = [reactionBag[1], reactionBag[0]];
-  }
-  lastReaction = reactionBag.shift(); const meme = reactions[lastReaction];
+function stopReactions() { document.querySelectorAll('video.reaction').forEach(video => video.pause()); }
+function syncReactionAudio() {
+  document.querySelectorAll('video.reaction').forEach(video => { video.muted = !sound; video.volume = volume; });
+  document.querySelectorAll('[data-reaction-sound]').forEach(button => {
+    button.textContent = sound ? '♪ Sound on' : '♪ Sound off'; button.setAttribute('aria-pressed', sound);
+  });
+}
+function reaction(scene, target = content) {
+  const meme = reactions[scene.meme];
   const figure = document.createElement('figure'); figure.className = 'reaction-frame';
-  const img = document.createElement('img'); img.src = meme.src; img.alt = meme.alt; img.className = 'reaction';
-  const fallback = document.createElement('div'); fallback.className = 'meme-fallback'; fallback.hidden = true;
-  fallback.innerHTML = '<span>POV: dabba phir aa gaya.</span><b>Yeh toh hona hi tha. 🤦🏽</b>';
-  img.onerror = () => { img.hidden = true; fallback.hidden = false; };
-  // Reduced-motion visitors get a text meme with an opt-in to the GIF.
-  if (reduced) { img.hidden = true; fallback.hidden = false; const play = document.createElement('button'); play.className = 'quiet-button'; play.textContent = 'Play reaction GIF'; play.onclick = () => { img.hidden = false; fallback.hidden = true; play.remove(); }; figure.append(play); }
+  const caption = document.createElement('figcaption'); caption.className = 'reaction-context'; caption.textContent = scene.caption;
+  const video = document.createElement('video'); video.src = meme.src; video.className = 'reaction';
+  video.setAttribute('aria-label', meme.title); video.playsInline = true; video.preload = 'metadata';
+  video.muted = !sound; video.volume = volume;
+  const fallback = document.createElement('div'); fallback.className = 'meme-fallback'; fallback.hidden = !reduced;
+  const quote = document.createElement('b'); quote.textContent = meme.line; fallback.append(quote);
+  video.hidden = reduced;
+  const controls = document.createElement('div'); controls.className = 'reaction-controls';
+  const replay = document.createElement('button'); replay.className = 'quiet-button'; replay.textContent = reduced ? '▶ Play reaction' : '↻ Replay reaction';
+  const mute = document.createElement('button'); mute.className = 'quiet-button'; mute.dataset.reactionSound = '';
+  mute.textContent = sound ? '♪ Sound on' : '♪ Sound off'; mute.setAttribute('aria-pressed', sound);
+  const play = () => {
+    video.hidden = false; fallback.hidden = true;
+    video.currentTime = 0; video.play().catch(() => { replay.textContent = '▶ Play reaction'; });
+  };
+  replay.onclick = play;
+  mute.onclick = () => { setSound(!sound); if (sound) play(); };
+  video.onerror = () => { video.hidden = true; fallback.hidden = false; replay.disabled = true; mute.disabled = true; };
   const link = document.createElement('a'); link.href = meme.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-  link.className = 'credit'; link.textContent = `Reaction: ${meme.title} ↗`;
-  figure.append(img, fallback, link); target.append(figure);
+  link.className = 'credit'; link.textContent = `${meme.title} · source ↗`;
+  controls.append(replay, mute); figure.append(caption, video, fallback, controls, link); target.append(figure);
+  // One playback per reveal; dialogue never loops or continues after the card closes.
+  if (!reduced) play();
 }
 const papdiStops = [
-  {name: 'Sharma aunty', joke: '“Arre, iski kya zaroorat thi?” Gift bag ka handle pakad ke aunty ne kaha.'},
-  {name: 'Gupta uncle', joke: 'Uncle ne upar “premium dry fruits” ka sticker chipka diya. Rebranding ka budget: ₹0.'},
-  {name: 'Your manager', joke: 'Dabba is now a “festive performance incentive”. Your promotion is still in review.'},
-  {name: 'Society secretary', joke: 'Maintenance ke paise full. Mithai society ke WhatsApp group se crowdsourced.'},
-  {name: 'Your cousin', joke: 'Cousin ne gift tag badla. Instagram story mein “small wins, big blessings” daala.'},
-  {name: 'Bua ji', joke: 'Dabba accept karne se pehle bua ne kundli maangi. Soan papdi ki nahi. Tumhari.'},
-  {name: 'Chai-wale bhaiya', joke: 'Bhaiya ne bola “khata clear karo pehle”. Dabba bhi udhaar mein accept nahi hua.'},
-  {name: 'NRI maasi', joke: '“Is this gluten-free?” Maasi has now taken the dabba through two international airports.'},
-  {name: 'Gym bro', joke: '“Protein kitna hai?” He logs one bite as a cheat meal, regifts the remaining 499 grams.'},
-  {name: 'The tuition sir', joke: 'Sir ne iske bhi 3 marks kaat diye. Steps nahi likhe the gift note pe.'},
-  {name: 'Building ke kids', joke: 'Chocolate nahi nikli. Entire unboxing committee has unanimously rejected the product.'},
-  {name: 'Your office bestie', joke: '“Mere ghar mat lana,” bestie said. Then left the exact same dabba on your desk.'}
+  {name: 'Sharma aunty', joke: '“Arre, iski kya zaroorat thi?” Gift bag ka handle pakad ke aunty ne kaha.', reaction: {"meme": "control", "caption": "Trying to keep a straight face as aunty plans to regift your gift."}},
+  {name: 'Gupta uncle', joke: 'Uncle ne upar “premium dry fruits” ka sticker chipka diya. Rebranding ka budget: ₹0.', reaction: {"meme": "confused", "caption": "That premium dry-fruit sticker is covering a soan-papdi label."}},
+  {name: 'Your manager', joke: 'Dabba is now a “festive performance incentive”. Your promotion is still in review.', reaction: {"meme": "control", "caption": "When your manager calls a regifted dabba a performance incentive."}},
+  {name: 'Society secretary', joke: 'Maintenance ke paise full. Mithai society ke WhatsApp group se crowdsourced.', reaction: {"meme": "control", "caption": "Paying full maintenance, then funding the society mithai too."}},
+  {name: 'Your cousin', joke: 'Cousin ne gift tag badla. Instagram story mein “small wins, big blessings” daala.', reaction: {"meme": "confused", "caption": "A new Instagram story and a gift tag do not make this a new gift."}},
+  {name: 'Bua ji', joke: 'Dabba accept karne se pehle bua ne kundli maangi. Soan papdi ki nahi. Tumhari.', reaction: {"meme": "control", "caption": "When giving bua mithai somehow starts a marriage interview."}},
+  {name: 'Chai-wale bhaiya', joke: 'Bhaiya ne bola “khata clear karo pehle”. Dabba bhi udhaar mein accept nahi hua.', reaction: {"meme": "control", "caption": "Chai-wale bhaiya is waiting for payment. You brought soan papdi."}},
+  {name: 'NRI maasi', joke: '“Is this gluten-free?” Maasi has now taken the dabba through two international airports.', reaction: {"meme": "confused", "caption": "When a local dabba has a better international travel history than you."}},
+  {name: 'Gym bro', joke: '“Protein kitna hai?” He logs one bite as a cheat meal, regifts the remaining 499 grams.', reaction: {"meme": "confused", "caption": "Watching gym bro calculate macros for a regifted dabba."}},
+  {name: 'The tuition sir', joke: 'Sir ne iske bhi 3 marks kaat diye. Steps nahi likhe the gift note pe.', reaction: {"meme": "control", "caption": "Tuition sir is grading the gift note. Even on Diwali."}},
+  {name: 'Building ke kids', joke: 'Chocolate nahi nikli. Entire unboxing committee has unanimously rejected the product.', reaction: {"meme": "control", "caption": "The kids were promised chocolate. The dabba was not chocolate."}},
+  {name: 'Your office bestie', joke: '“Mere ghar mat lana,” bestie said. Then left the exact same dabba on your desk.', reaction: {"meme": "confused", "caption": "Your bestie banned the dabba, then secretly put it on your desk."}},
 ];
 let papdiRoute = [], previousFirst = '', papdiTrip = 0;
 function resetPapdi() {
@@ -287,36 +342,53 @@ function resetPapdi() {
   papdi(0);
 }
 function papdi(step) {
+  stopReactions();
   const end = step === papdiRoute.length + 1;
   const trail = ['You', ...papdiRoute.slice(0, Math.min(step, papdiRoute.length)).map(stop => stop.name)];
   if (end) trail.push('You. Again.');
   const joke = step === 0 ? 'Naya route. Naye suspects. Wahi suspicious dabba. Is baar kiske ghar jayega?'
     : end ? 'Your own gift tag is still underneath. Dabba ne tumse zyada Diwali parties attend kar li.' : papdiRoute[step - 1].joke;
   content.innerHTML = `<div class="eyebrow">SOAN PAPDI MULTIVERSE · TRIP ${papdiTrip}</div><h2>${end ? 'Ghar wapsi ho gayi.' : step ? `${papdiRoute[step - 1].name} has the dabba.` : 'Same dabba. New drama.'}</h2><div class="route">${trail.join(' → ')}</div><p>${joke}</p><div id="papdi-reaction"></div><div class="game-actions"><button class="primary" id="pass">${end ? 'Break the cycle. Eat it.' : 'Regift. Obviously.'} ↗</button><button class="quiet-button" id="reset-route">Shuffle the route ↻</button></div>`;
-  if (step) reaction($('#papdi-reaction'));
+  if (step) reaction(end ? {meme: 'confused', caption: 'The dabba you gave away comes back with your own gift tag still on it.'} : papdiRoute[step - 1].reaction, $('#papdi-reaction'));
   $('#reset-route').onclick = () => { resetPapdi(); $('#pass').focus(); };
   $('#pass').onclick = () => {
-    if (!end) { papdi(step + 1); $('#pass').focus(); beep(); }
+    if (!end) { papdi(step + 1); $('#pass').focus(); }
     else {
+      stopReactions();
       const endings = [
         'You ate the soan papdi. Somewhere, an entire supply chain just collapsed. Honestly? It was delicious.',
         'Plot twist: you actually like soan papdi. The family group has been notified. Seven more dabbas are on their way.',
         'You put it next to the chai. Five minutes later: empty dabba. Everyone blames the cousin who went to the gym.'
       ];
       content.innerHTML = `<span class="big-icon">🏆</span><h2>The cycle is broken.</h2><p>${endings[(papdiTrip - 1) % endings.length]}</p><button class="primary" id="again">Start another questionable journey ↗</button>`;
-      reaction(); $('#again').onclick = () => { resetPapdi(); $('#pass').focus(); }; $('#again').focus();
+      reaction((papdiTrip - 1) % 3 === 1 ? {meme: 'control', caption: 'You admit you like soan papdi. Your family sends seven more boxes.'} : {meme: 'fun', caption: 'You finally stop regifting and bring the mithai to the chai table.'}); $('#again').onclick = () => { resetPapdi(); $('#pass').focus(); }; $('#again').focus();
     }
   };
 }
 function family(){content.innerHTML='<div class="eyebrow">SHARMA PARIVAAR · 47 MEMBERS</div><h2>Happy Diwali 🌷🙏</h2><div class="messages" id="messages" role="log" aria-live="polite"><div class="message"><b>PAPA · ADMIN</b>Happy Diwali. Please do not send Good Morning here. Separate group hai.</div><div class="message"><b>BUA JI</b>Beta, shaadi kab kar rahe ho? 👀</div></div><div class="options"><button data-reply="career">“Abhi career pe focus hai, bua.”</button><button data-reply="food">“Kaju katli kisne khatam ki?”</button><button data-reply="leave">Attempt to leave group ↗</button></div>';let replies=0;const responses={career:['BUA JI','Career toh Sharma ji ke bete ka bhi hai. Uske do bachche hain.'],food:['MUMMY','Maine mehmaan ke liye rakhi thi. Tumne fridge khola kyun?'],leave:['PAPA · ADMIN','Papa added you.\nPapa made you an admin.\nAb light bill ka PDF bhejo.']};content.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{const log=$('#messages');const you=document.createElement('div');you.className='message you';you.textContent=b.textContent;log.append(you);const answer=document.createElement('div');answer.className='message';const who=document.createElement('b');who.textContent=responses[b.dataset.reply][0];answer.append(who,document.createTextNode(responses[b.dataset.reply][1]));log.append(answer);log.scrollTop=log.scrollHeight;replies++;if(replies===3)toast('Achievement unlocked: emotionally present, physically on mute.');})}
-let bonusRoll=0;
-function bonus(){content.innerHTML='<div class="eyebrow">A PERSONAL MESSAGE FROM HR</div><span class="big-icon">✉️</span><h2>Your hard work<br>has been noticed.</h2><p>“Dear valued resource, we have gone above and beyond to curate your festive happiness.”</p><button class="primary" id="unbox">Open the hamper <span>↗</span></button>';$('#unbox').onclick=()=>{const prizes=[['₹ 0','A heartfelt email.','“Your contribution is priceless. So we haven’t put a price on it.”'],['1 DABBA','The legacy bonus.','Soan papdi. An air fryer was discussed. A suitcase was shortlisted. Then Finance joined the call.'],['₹ 101','Shagun, with conditions.','₹1 for good luck. ₹100 redeemable at the office cafeteria. Minimum spend ₹999.'],['1 DAY','A surprise holiday!','It’s Sunday. HR says you’re welcome.'],['AIR FRYER!','The plot twist nobody expected.','A picture of an air fryer. In the company newsletter. Please like and reshare.']];const p=prizes[bonusRoll++%prizes.length];content.innerHTML=`<div class="eyebrow">YOUR FESTIVE APPRAISAL IS HERE</div><div class="bonus-amount">${p[0]}</div><h2>${p[1]}</h2><p>${p[2]}</p><button class="primary" id="reroll">Try another company ↗</button>`;reaction();$('#reroll').onclick=bonus;beep()}}
+let bonusRoll = 0;
+function bonus() {
+  stopReactions();
+  content.innerHTML = '<div class="eyebrow">A PERSONAL MESSAGE FROM HR</div><span class="big-icon">✉️</span><h2>Your hard work<br>has been noticed.</h2><p>“Dear valued resource, we have gone above and beyond to curate your festive happiness.”</p><button class="primary" id="unbox">Open the hamper <span>↗</span></button>';
+  $('#unbox').onclick = () => {
+    const prizes = [
+      ['₹ 0', 'A heartfelt email.', '“Your contribution is priceless. So we haven’t put a price on it.”', {meme: 'control', caption: 'Trying to stay professional after an email is announced as your bonus.'}],
+      ['1 DABBA', 'The legacy bonus.', 'Soan papdi. An air fryer was discussed. A suitcase was shortlisted. Then Finance joined the call.', {meme: 'control', caption: 'Your face when the promised appliance becomes another soan-papdi dabba.'}],
+      ['₹ 101', 'Shagun, with conditions.', '₹1 for good luck. ₹100 redeemable at the office cafeteria. Minimum spend ₹999.', {meme: 'wasted', caption: 'When using your ₹101 bonus requires spending ₹999 first.'}],
+      ['1 DAY', 'A surprise holiday!', 'It’s Sunday. HR says you’re welcome.', {meme: 'confused', caption: 'When HR gives you the Sunday you already had off.'}],
+      ['AIR FRYER!', 'The plot twist nobody expected.', 'A picture of an air fryer. In the company newsletter. Please like and reshare.', {meme: 'confused', caption: 'Opening your air fryer gift and finding a JPEG attachment.'}]
+    ];
+    const p = prizes[bonusRoll++ % prizes.length];
+    content.innerHTML = `<div class="eyebrow">YOUR FESTIVE APPRAISAL IS HERE</div><div class="bonus-amount">${p[0]}</div><h2>${p[1]}</h2><p>${p[2]}</p><button class="primary" id="reroll">Try another company ↗</button>`;
+    reaction(p[3]); $('#reroll').onclick = bonus;
+  };
+}
 $('#share').onclick=async()=>{const data={title:'Diwali After Dark',text:'Patakhe without pollution. Family drama without the family. Aao, thoda kaand karein. 🪔',url:location.href};try{if(navigator.share){await navigator.share(data)}else if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(`${data.text}\n${data.url}`);toast('Link copied. Family group mein daalne ki himmat hai?')}else{toast('Share this page’s address with your favourite troublemaker.')}}catch(e){if(e.name!=='AbortError')toast('Share this page’s address with your favourite troublemaker.')}};
 // A tiny opening flourish; reduced-motion visitors start with a still sky.
 if(!reduced)later(()=>{burst(w*.76,h*.3,55,'#d9ae66',true)},650);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    cancelAnimationFrame(frame); clearSky(); clearTimeout(toastTimer); $('#toast').classList.remove('show');
+    cancelAnimationFrame(frame); clearSky(); stopReactions(); clearTimeout(toastTimer); $('#toast').classList.remove('show');
     if (audio) audio.suspend().catch(() => {});
   } else { lastTime = performance.now(); frame = requestAnimationFrame(animate); }
 });

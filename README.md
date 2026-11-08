@@ -6,8 +6,8 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 
 ## Play
 
-- **Patakha lab:** select Rocket, Anaar, Chakri, or Ladi and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls all effects.
-- **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Reaction GIFs cycle through a shuffled deck without immediate repeats, and endings change between trips.
+- **Patakha lab:** select Rocket, Anaar, Chakri, or Ladi and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
+- **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Each joke has an explicitly assigned reaction clip and a scene-specific caption; endings change between trips. Reactions are never randomly selected.
 - **The chhat gang:** click Sharma ji, Chintu, and Pooja for rooftop commentary. They sway, wave, film, and dance as fireworks launch. Milestone counts unlock society-committee complaints.
 - **Family WhatsApp:** choose your reply and face the consequences.
 - **Corporate bonus:** five escalating HR disappointments, with a Hera Pheri reaction GIF.
@@ -37,16 +37,22 @@ Aubergine, vermilion, antique gold, and sage; original CSS illustrations; a roof
 
 ## External content
 
-The site works without external media; fonts fall back and failed GIFs display an original text meme. Reduced-motion visitors can choose whether to play reaction GIFs. Indian reaction GIFs are hotlinked from Tenor and individually credited in the interface:
+Reaction memes are short local MP4 clips containing their matching original audio. They play once per reveal, support replay and sound toggles, and stop when the card closes or the tab is hidden. Reduced-motion visitors opt into playback. Fonts retain system fallbacks, and failed videos display the reaction text.
 
-- Jethalal shocked: https://tenor.com/view/jethalal-jethalal-shocked-shocked-face-reaction-what-what-what-gif-19739068
-- Phir Hera Pheri: https://tenor.com/view/paisa-hi-paisa-hoga-gif-22249471
-- Welcome / Control Uday: https://tenor.com/en-IN/view/control-control-uday-control-uday-control-welcome-bas-kar-gif-13094741744719698430
-- Welcome / Miracle: https://tenor.com/view/miracle-miracle-miracle-saloniie-akshay-kumar-welcome-gif-14491263
+Clip sources (also credited beside each reaction):
 
-Rooftop characters are original inline SVG artwork. Firecracker sounds are synthesized; no audio downloads or recordings are needed.
+- Control Uday / Welcome: https://templates.meme/templates/control-uday — frustrating relatives and disappointing HR news.
+- Yeh kya hai? / CarryMinati: https://templates.meme/templates/yeh-kya-hai — confusing gift labels, circular regifting, and fake gifts.
+- Paisa barbad / CarryMinati: https://templates.meme/templates/paisa-barbad — the ₹101 bonus requiring a ₹999 purchase.
+- Abhi maza ayega / Phir Hera Pheri: https://templates.meme/templates/abhi-maza-ayega-na-bhidu — finally opening the mithai with chai.
+
+Rooftop characters are original inline SVG artwork. Firecracker sounds are synthesized; reaction dialogue comes from the local video clips.
 
 The bonus/soan-papdi scenario was inspired by current Diwali gifting chatter; the jokes and interactive scenarios are original:
 - https://www.ndtvprofit.com/trending/diwali-gifts-viral-video-shows-office-employees-getting-air-fryers-still-getting-soan-papdi-resign-12260442
 
 No analytics, cookies, or user data storage.
+
+## Regression checks
+
+With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and audio tracks in all four clips.
