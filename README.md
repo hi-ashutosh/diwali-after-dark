@@ -6,7 +6,7 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 
 ## Play
 
-- **Patakha lab:** select Rocket, Anaar, Chakri, or Ladi and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
+- **Patakha lab:** select Rocket, Anaar, Chakri, Ladi, or Bomb and tap the sky. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in. Rocket, Anaar (fuljadi), Ladi, and Bomb play real recordings from `assets/sounds/`, timed to the visuals: the rocket recording is skipped ahead so its bang lands on the burst, and the bomb's two blasts flash and shake the sky on each bang. Chakri and the remaining effects use layered Web Audio synthesis with stereo positioning. Opening `index.html` straight from disk falls back to plain `<audio>` playback. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
 - **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Each joke has a curated pool of fitting reaction clips and a scene-specific caption. Least-recently-used selection reduces repetition across games, and “Another take” cycles through the current scene’s fitting alternatives. Endings change between trips.
 - **The chhat gang:** click Sharma ji, Chintu, and Pooja for rooftop commentary. They sway, wave, film, and dance as fireworks launch. Milestone counts unlock society-committee complaints.
 - **Family WhatsApp:** choose your reply and face the consequences.
@@ -63,7 +63,7 @@ Additional clips:
 - Jethalal’s shocked face · TMKOC: https://tenor.com/view/jethalal-jethalal-shocked-shocked-face-reaction-what-what-what-gif-19739068
 - Daya’s celebration · TMKOC: https://tenor.com/view/garba-daya-gif-26821643
 
-Rooftop characters are original inline SVG artwork. Firecracker sounds are synthesized; reaction dialogue comes from the local video clips.
+Rooftop characters are original inline SVG artwork. Rocket, fuljadi, ladi, and bomb sounds are local MP3 recordings in `assets/sounds/`; chakri is synthesized. Reaction dialogue comes from the local video clips.
 
 The bonus/soan-papdi scenario was inspired by current Diwali gifting chatter; the jokes and interactive scenarios are original:
 - https://www.ndtvprofit.com/trending/diwali-gifts-viral-video-shows-office-employees-getting-air-fryers-still-getting-soan-papdi-resign-12260442

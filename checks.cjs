@@ -43,6 +43,16 @@ for (const clip of Object.values(scenes.scenes.reactions)) {
 }
 console.log('Passed: elapsed-time animation, bounded/batched rendering, cached glows, explicit scene mapping, and 18 reaction assets with available audio.');
 
+const soundMap = source.match(/const samples = (\{[^}]+\})/);
+assert(soundMap, 'Recorded firecracker sounds must be declared in one map');
+const sampleFiles = vm.runInNewContext('(' + soundMap[1] + ')');
+for (const type of ['rocket', 'anaar', 'ladi', 'bomb']) {
+  assert(sampleFiles[type], type + ' needs a recorded sound');
+  const data = fs.readFileSync(__dirname + '/' + sampleFiles[type]);
+  assert(data.subarray(0, 3).equals(Buffer.from('ID3')) || (data[0] === 0xff && (data[1] & 0xe0) === 0xe0), sampleFiles[type] + ' must be a real MP3');
+}
+assert(fs.readFileSync(__dirname + '/index.html', 'utf8').includes('data-type="bomb"'), 'The tray needs a Bomb button');
+
 assert.equal(Object.keys(scenes.scenes.reactions).length, 18);
 vm.runInContext("globalThis.rotation = Array.from({length:4}, () => chooseReaction(papdiStops[0].reaction));", scenes);
 assert.equal(new Set(scenes.rotation).size, 4, 'A scene must show each fitting option before repeating');
