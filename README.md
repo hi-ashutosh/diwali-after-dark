@@ -6,7 +6,7 @@ A royal, very unserious Diwali playground. Vanilla HTML, CSS, Canvas, and JavaSc
 
 ## Play
 
-- **Patakha lab:** choose from ten effects: Rocket, Anaar, Chakri, Ladi, Phuljhadi, Sutli bomb, Sky shots, Confetti, Flying UFO, and Dilwale hearts. Tap the sky to launch; drag a Phuljhadi to paint with sparks. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in and generated with layered Web Audio: rocket whistles, ignition hiss, pressure thumps, stereo positioning, echoes, and crackling tails. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
+- **Patakha lab:** choose from eleven effects: Rocket, Anaar, Chakri, Ladi, Phuljhadi, Bomb, Green bomb, Sky shots, Confetti, Flying UFO, and Dilwale hearts. Tap the sky to launch; drag a Phuljhadi to paint with sparks. Each effect behaves differently. “The whole mohalla” launches a finale. Firecracker sound is opt-in. Dharmik’s recordings in `assets/sounds/` play in full for Rocket, Anaar/Phuljhadi, Ladi, and Bomb. Rocket flight and its crackle tail follow the recorded launch/bang timing, fountains and ladi match their two-second clips, and Bomb has two timed blasts with flashes and a small shake. Other effects retain synthesized sound. The volume slider controls firecrackers and reaction-video audio. The finale opens with an immediate three-rocket volley and a compact crescendo. The renderer uses cached glows, batched trails, a device-aware particle budget, and elapsed-time physics to avoid slow motion under load.
 - **Soan Papdi Multiverse:** follow a gift through five randomly selected recipients from a cast of twelve. Each reset shuffles the order and guarantees a different first recipient. Each joke has a curated pool of fitting reaction clips and a scene-specific caption. Least-recently-used selection reduces repetition across games, and “Another take” cycles through the current scene’s fitting alternatives. Endings change between trips.
 - **Chhat fights:** choose Chintu, Sharma ji, or Pooja as your thrower, select a patakha, and tap a rooftop rival. Cartoon packets follow an arc; characters jump, complain, and optionally throw confetti back once. This is a solo browser game with NPC characters. The counter tracks successful pranks.
 - **Big screen / Surprise me / Breeze:** expand the arena, launch a random effect, or let the wind bend your sparks. Escape exits big-screen mode.
@@ -65,7 +65,7 @@ Additional clips:
 - Jethalal’s shocked face · TMKOC: https://tenor.com/view/jethalal-jethalal-shocked-shocked-face-reaction-what-what-what-gif-19739068
 - Daya’s celebration · TMKOC: https://tenor.com/view/garba-daya-gif-26821643
 
-Rooftop characters are original inline SVG artwork. Firecracker sounds are synthesized; reaction dialogue comes from the local video clips.
+Rooftop characters are original inline SVG artwork. Rocket, fountain/phuljhadi, ladi, and Bomb sounds use the MP3 recordings contributed by DBMistry-Git on `dharmik-dev`. Other firecracker effects are synthesized; reaction dialogue comes from the local video clips.
 
 The bonus/soan-papdi scenario was inspired by current Diwali gifting chatter; the jokes and interactive scenarios are original:
 - https://www.ndtvprofit.com/trending/diwali-gifts-viral-video-shows-office-employees-getting-air-fryers-still-getting-soan-papdi-resign-12260442
@@ -74,4 +74,8 @@ No analytics, cookies, or user data storage.
 
 ## Regression checks
 
-With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and all 18 reaction assets, available audio tracks, contextual rotation, ten firecracker controls, throw trajectories, and bounded return-fire logic.
+With Node installed, run `node checks.cjs`. Checks cover real elapsed time after dropped frames, bounded and batched rendering, cached glow sprites, contextual reaction assignments, and all 18 reaction assets, available audio tracks, contextual rotation, eleven firecracker controls, throw trajectories, and bounded return-fire logic.
+
+Recorded firecracker audio and Bomb choreography adapted from Dharmik’s commits `87ef472` and `9669cad`, retaining the expanded arena and cartoon toss mode.
+
+Green bomb combines the recorded double bang with bass reinforcement, larger shockwave rings and a short Bhide/TMKOC reaction sting extracted from the existing credited clip. Bomb artwork is original inline SVG. Blast effects preserve reduced-motion support and the particle budget.

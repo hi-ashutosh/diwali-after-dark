@@ -1,7 +1,7 @@
 'use strict';
 let playMode = 'sky', thrower = 'launcher', prankCount = 0, paintingAt = 0;
 const people = {uncle: 'Sharma ji', launcher: 'Chintu', dancer: 'Pooja'};
-const crackerNames = {rocket: 'Rocket', anaar: 'Anaar', chakri: 'Chakri', ladi: 'Ladi', phuljhadi: 'Phuljhadi', sutli: 'Sutli bomb', skyshots: 'Sky shots', confetti: 'Confetti', ufo: 'Flying UFO', dilwale: 'Dilwale'};
+const crackerNames = {rocket: 'Rocket', anaar: 'Anaar', chakri: 'Chakri', ladi: 'Ladi', phuljhadi: 'Phuljhadi', bomb: 'Bomb', greenbomb: 'Green bomb', skyshots: 'Sky shots', confetti: 'Confetti', ufo: 'Flying UFO', dilwale: 'Dilwale'};
 function roofSay(line) {
   $('#roof-comment').textContent = line; $('#roof-comment').classList.add('visible');
   clearTimeout(neighbourTimer); neighbourTimer = setTimeout(() => $('#roof-comment').classList.remove('visible'), 2600);
@@ -15,17 +15,13 @@ function sparkle(x, y) {
 function extraFirecracker(type, x, y) {
   const floor = h - 44;
   if (type === 'phuljhadi') {
-    soundEffect('chakri', x); sparkle(x, y);
-    for (let i = 1; i < 6; i++) later(() => sparkle(x + (Math.random() - .5) * 8, y), i * 70);
-  } else if (type === 'sutli') {
-    soundEffect('chakri', x);
-    for (let k = 0; k < 6; k++) later(() => sparkle(x, floor - 8), k * 55);
-    later(() => { burst(x, floor - 20, 120, '#ffd17e'); smoke(x, floor - 15, 2); }, 390);
+    soundEffect('phuljhadi', x); sparkle(x, y);
+    for (let i = 1; i < Math.round(FOUNTAIN_LENGTH * 1000 / 70); i++) later(() => sparkle(x + (Math.random() - .5) * 8, y), i * 70);
   } else if (type === 'skyshots') {
     soundEffect('rocket', x);
     for (let k = 0; k < 5; k++) later(() => {
       const sx = Math.max(20, Math.min(w - 20, x + (k - 2) * 48));
-      rockets.push({x: sx, y: floor, target: Math.max(35, y - (k % 2) * 45), speed: Math.max(10, h / 36)});
+      rockets.push({x: sx, y: floor, ground: floor, target: Math.max(35, y - (k % 2) * 45), born: performance.now(), flight: ROCKET_BURST * 1000});
     }, k * 110);
   } else if (type === 'confetti') {
     soundEffect('pop', x);

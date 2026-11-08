@@ -3,7 +3,7 @@ const $ = s => document.querySelector(s);
 const canvas = $('#fireworks'), ctx = canvas.getContext('2d'), sky = $('#sky');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const colors = ['#ffd17e', '#ff8668', '#c99bf0', '#9fd9b1', '#fff1c1', '#ef7dac'];
-let w = 0, h = 0, particles = [], rockets = [], flashes = [], projectiles = [], count = 0, wind = 0;
+let w = 0, h = 0, particles = [], rockets = [], flashes = [], shockwaves = [], projectiles = [], count = 0, wind = 0;
 let selected = 'rocket', sound = false, audio, master, noiseBuffer, frame, lastTime = 0;
 let volume = .45, partyUntil = 0, neighbourTimer, lastComment = 0;
 const timers = new Set(), audioSources = new Set();
@@ -40,12 +40,46 @@ function prepareAudio() {
     noiseBuffer = audio.createBuffer(1, audio.sampleRate * 3, audio.sampleRate);
     const data = noiseBuffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    loadSamples();
   }
   audio.resume().catch(() => {});
+}
+// Recorded patakha sounds. Decoded into Web Audio when served over http(s);
+// plain <audio> playback covers index.html opened straight from disk.
+const samples = {greenbomb: 'assets/sounds/bomb.mp3', tmkoc: 'assets/sounds/bhide-reaction.m4a', phuljhadi: 'assets/sounds/fuljadi.mp3', rocket: 'assets/sounds/rocket.mp3', anaar: 'assets/sounds/fuljadi.mp3', ladi: 'assets/sounds/ladi.mp3', bomb: 'assets/sounds/bomb.mp3'};
+// Moments (seconds) in each recording that the animation is choreographed to.
+// Rocket: launch whoosh from 0s, burst bang at 2.95s, crackle tail around 3.3–3.7s. Bomb: two bangs.
+const ROCKET_BURST = 2.95, ROCKET_CRACKLE = [3.3, 3.45, 3.6, 3.72], BOMB_BLASTS = [.3, 2.97], FOUNTAIN_LENGTH = 2, LADI_LENGTH = 2;
+const sampleBuffers = new Map(), sampleElements = new Set();
+let samplesRequested = false;
+function loadSamples() {
+  if (samplesRequested || location.protocol === 'file:') return;
+  samplesRequested = true;
+  for (const [kind, src] of Object.entries(samples)) {
+    fetch(src).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+      .then(data => audio.decodeAudioData(data)).then(buffer => sampleBuffers.set(kind, buffer)).catch(() => {});
+  }
+}
+// Recordings always play in full, start to finish.
+function playSample(kind, pan) {
+  const buffer = sampleBuffers.get(kind);
+  if (buffer) {
+    if (audioSources.size > 65) return;
+    const source = audio.createBufferSource(), filter = audio.createGain(), gain = audio.createGain();
+    source.buffer = buffer; output(source, filter, gain, pan); source.start(audio.currentTime);
+    return;
+  }
+  if (sampleElements.size > 16) return;
+  const element = new Audio(samples[kind]);
+  element.volume = volume; sampleElements.add(element);
+  element.onended = element.onerror = () => sampleElements.delete(element);
+  element.play().catch(() => sampleElements.delete(element));
 }
 function stopSounds() {
   audioSources.forEach(source => { try { source.stop(); } catch {} });
   audioSources.clear();
+  sampleElements.forEach(element => element.pause());
+  sampleElements.clear();
 }
 function output(source, filter, gain, pan) {
   const panner = audio.createStereoPanner(); panner.pan.value = Math.max(-.85, Math.min(.85, pan));
@@ -79,7 +113,10 @@ function soundEffect(kind, x = w / 2) {
   if (!sound) return;
   try {
     prepareAudio(); const t = audio.currentTime, pan = x / Math.max(w, 1) * 1.6 - .8;
-    if (kind === 'rocket') {
+    if (samples[kind]) {
+      playSample(kind, pan);
+      if (kind === 'greenbomb') BOMB_BLASTS.forEach(at => tone(t + at, .55, 105, 29, .18, pan));
+    } else if (kind === 'rocket') {
       noise(t, .7, .35, 2800, pan, true);
       tone(t + .08, .7, 650, 2600, .075, pan);
     } else if (kind === 'anaar' || kind === 'chakri') {
@@ -120,6 +157,10 @@ function burst(x, y, n = 130, color = colors[Math.floor(Math.random() * colors.l
       {drag: gold ? .991 : .984});
     if (i % 8 === 0) add(x, y, Math.cos(a) * speed * .6, Math.sin(a) * speed * .6, '#fff8d7', 35, 2, .04);
   }
+  if (n > 90 && !reduced) {
+    if (shockwaves.length >= 12) shockwaves.shift();
+    shockwaves.push({x, y, age: 0, color, scale: n > 170 ? 1.8 : n > 140 ? 1.4 : 1});
+  }
   smoke(x, y, n > 60 ? 5 : 2);
 }
 function animate(time) {
@@ -134,13 +175,16 @@ function animate(time) {
     else if (frameAverage < 18) particleBudget = Math.min(smallDevice ? 650 : 1000, particleBudget + 40);
     lastQualityCheck = time;
   }
-  if (!particles.length && !rockets.length && !flashes.length && !projectiles.length && !partyUntil) return;
+  if (!particles.length && !rockets.length && !flashes.length && !shockwaves.length && !projectiles.length && !partyUntil) return;
   ctx.clearRect(0, 0, w, h);
   if (typeof updateTosses === 'function') updateTosses(time);
   for (let i = rockets.length - 1; i >= 0; i--) {
-    const r = rockets[i]; r.y -= r.speed * dt;
-    for (let k = 0; k < (reduced ? 1 : 2); k++) add(r.x, r.y, (Math.random() - .5) * .5, 1 + Math.random(), k % 2 ? '#ff9e52' : '#fff3bd', 24, 1.2, .012);
-    if (r.y <= r.target) { burst(r.x, r.target); rockets.splice(i, 1); }
+    // Clock-driven flight: a hard push during the launch whoosh, then a slow coast to the bang.
+    const r = rockets[i], progress = Math.min(1, (time - r.born) / r.flight);
+    r.y = r.ground - (r.ground - r.target) * (1 - Math.pow(1 - progress, 2.4));
+    const sparks = progress < .3 ? 3 : progress < .75 ? 2 : 1;
+    for (let k = 0; k < (reduced ? 1 : sparks); k++) add(r.x + (Math.random() - .5) * 1.5, r.y, (Math.random() - .5) * .5, .6 + Math.random() * (progress < .3 ? 2 : .8), k % 2 ? '#ff9e52' : '#fff3bd', progress < .3 ? 30 : 20, 1.2, .012);
+    if (progress >= 1) { rocketBurst(r.x, r.target); rockets.splice(i, 1); }
   }
   // Compact survivors in place: no per-spark arrays, shifts or splice allocations.
   let alive = 0;
@@ -166,6 +210,12 @@ function animate(time) {
     ctx.globalAlpha = f.life / 9 * .25;
     ctx.drawImage(glowSprite(f.color), f.x - f.size, f.y - f.size, f.size * 2, f.size * 2);
   }
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const ring = shockwaves[i]; ring.age += dt;
+    if (ring.age > 24) { shockwaves.splice(i, 1); continue; }
+    ctx.globalAlpha = (1 - ring.age / 24) * .48; ctx.strokeStyle = ring.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(ring.x, ring.y, (12 + ring.age * 5) * ring.scale, 0, Math.PI * 2); ctx.stroke();
+  }
   // Batch trails by colour: a handful of canvas strokes replaces thousands.
   ctx.lineWidth = 1.2; ctx.lineCap = 'round';
   for (const color of sparkColors) {
@@ -182,7 +232,7 @@ function animate(time) {
     ctx.fill();
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  if (partyUntil && time > partyUntil) { sky.classList.remove('celebrating'); partyUntil = 0; }
+  if (partyUntil && time > partyUntil) { sky.classList.remove('celebrating', 'shake', 'heavy-impact'); partyUntil = 0; }
 }
 const roofLines = ['Door se jalao, hero!', 'Mummy ko mat batana.', 'Sharma ji: bas last wala!', 'Meri reel mein aa gaya!', 'Chai thandi ho rahi hai!'];
 function rooftopReaction(force = false) {
@@ -193,17 +243,58 @@ function rooftopReaction(force = false) {
   $('#roof-comment').classList.add('visible'); clearTimeout(neighbourTimer);
   neighbourTimer = setTimeout(() => $('#roof-comment').classList.remove('visible'), 2400);
 }
+function rocketBurst(x, y) {
+  burst(x, y, 130, undefined, true);
+  // The recording's crackle tail: glittering pops scattered around the burst.
+  ROCKET_CRACKLE.forEach(at => later(() => {
+    for (let n = 0; n < (reduced ? 1 : 3); n++) {
+      const a = Math.random() * Math.PI * 2, d = 25 + Math.random() * 45;
+      burst(x + Math.cos(a) * d, y + Math.sin(a) * d + 15, reduced ? 4 : 12, '#fff8d7', true);
+    }
+  }, (at - ROCKET_BURST) * 1000));
+}
+function shakeSky(strength = 1) {
+  if (reduced) return;
+  sky.style.setProperty('--jolt', strength); sky.classList.remove('shake'); void sky.offsetWidth; sky.classList.add('shake');
+  later(() => sky.classList.remove('shake'), 420);
+}
 function launch(x = w * .5, y = h * .32, type = selected) {
   $('#sky-caption').style.opacity = '0'; count++;
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
   rooftopReaction(); const ground = h - 42;
   if (typeof extraFirecracker === 'function' && extraFirecracker(type, x, y)) return;
   if (type === 'rocket') {
-    soundEffect('rocket', x); rockets.push({x, y: ground, target: Math.max(32, Math.min(y, h * .57)), speed: Math.max(8.5, h / 45) + Math.random() * 1.5});
+    // The full recording plays; the rocket rises through the whoosh and bursts on its bang.
+    soundEffect('rocket', x);
+    rockets.push({x, y: ground, ground, target: Math.max(32, Math.min(y, h * .57)), born: performance.now(), flight: ROCKET_BURST * 1000});
+  } else if (type === 'bomb' || type === 'greenbomb') {
+    const heavy = type === 'greenbomb'; soundEffect(type, x);
+    if (heavy) {
+      sky.classList.add('heavy-impact'); later(() => sky.classList.remove('heavy-impact'), 3400);
+      later(() => { soundEffect('tmkoc', x); if (typeof roofSay === 'function') roofSay('Gokuldham committee has entered the chat.'); }, 3300);
+    }
+    const second = Math.max(30, Math.min(w - 30, x + (Math.random() > .5 ? 36 : -36)));
+    const fuse = (fx, from, to) => { for (let t = from; t < to; t += 40) later(() => {
+      for (let i = 0; i < (reduced ? 1 : 4); i++) add(fx, ground - 4, (Math.random() - .5) * 2.4, -1 - Math.random() * 2, Math.random() > .4 ? '#ffd17e' : '#fff6c6', 18 + Math.random() * 12, 1.2, .06);
+    }, t); };
+    // Each bomb's fuse fizzes right up to its bang in the recording.
+    fuse(x, 0, BOMB_BLASTS[0] * 1000); fuse(second, BOMB_BLASTS[1] * 1000 - 900, BOMB_BLASTS[1] * 1000);
+    BOMB_BLASTS.forEach((at, n) => later(() => {
+      const bx = n ? second : x;
+      flashes.push({x: bx, y: ground - 20, life: reduced ? 0 : 14, size: heavy ? 270 : 200, color: heavy ? '#caffaf' : '#fff1c1'});
+      burst(bx, ground - 22, heavy ? 190 : 150, heavy ? '#b9ec97' : n ? '#ffd17e' : '#ff8668', true);
+      for (let i = 0; i < (reduced ? 6 : 36); i++) {
+        const a = -Math.PI / 2 + (Math.random() - .5) * 1.9, speed = 3 + Math.random() * 5.5;
+        add(bx, ground - 6, Math.cos(a) * speed, Math.sin(a) * speed, Math.random() > .5 ? '#ffb64b' : '#fff8d7', 40 + Math.random() * 30, 1.8, .11);
+      }
+      smoke(bx, ground - 10, 3); shakeSky(heavy ? 1.6 : 1);
+    }, at * 1000));
   } else if (type === 'anaar') {
     soundEffect('anaar', x);
-    for (let k = 0; k < 42; k++) later(() => {
-      const strength = Math.sin(Math.PI * (k + 3) / 46);
+    // The fountain sprays for exactly as long as the fuljadi recording.
+    const ticks = Math.round(FOUNTAIN_LENGTH * 1000 / 43);
+    for (let k = 0; k < ticks; k++) later(() => {
+      const strength = Math.sin(Math.PI * (k + 3) / (ticks + 4));
       for (let i = 0; i < (reduced ? 2 : 6); i++) {
         const a = -Math.PI / 2 + (Math.random() - .5) * .7, speed = (2.5 + Math.random() * 4.2) * strength;
         add(x, ground, Math.cos(a) * speed, Math.sin(a) * speed, Math.random() > .3 ? '#ffcb70' : '#fff6c6', 52 + Math.random() * 28, 1.3, .075);
@@ -221,10 +312,13 @@ function launch(x = w * .5, y = h * .32, type = selected) {
       if (k % 10 === 0) smoke(cx, ground, 1);
     }, k * 30);
   } else {
-    for (let k = 0; k < 20; k++) later(() => {
-      const cx = Math.max(20, Math.min(w - 20, x + (k - 10) * 9));
-      burst(cx, ground - Math.random() * 7, reduced ? 8 : 26, k % 2 ? '#ffd17e' : '#ff8668');
-    }, k * 65 + Math.random() * 32);
+    // The string of pops runs for exactly as long as the ladi recording.
+    soundEffect('ladi', x);
+    const pops = Math.round(LADI_LENGTH * 1000 / 64);
+    for (let k = 0; k < pops; k++) later(() => {
+      const cx = Math.max(20, Math.min(w - 20, x + (k - pops / 2) * 6));
+      burst(cx, ground - Math.random() * 7, reduced ? 8 : 26, k % 2 ? '#ffd17e' : '#ff8668', true);
+    }, k * (LADI_LENGTH * 1000 - 40) / pops + Math.random() * 30);
   }
   if ([10, 25, 50, 100].includes(count)) toast(`${count} patakhe! Society committee ne emergency meeting bula li.`);
 }
@@ -248,6 +342,7 @@ $('#sound').onclick = () => setSound(!sound);
 $('#volume').oninput = e => {
   volume = Number(e.target.value) / 100;
   if (master) master.gain.setTargetAtTime(volume, audio.currentTime, .03);
+  sampleElements.forEach(element => element.volume = volume);
   syncReactionAudio();
 };
 $('#finale').onclick = () => {
@@ -256,13 +351,13 @@ $('#finale').onclick = () => {
   // An immediate first volley, then a compact crescendo with only one fountain.
   for (let i = 0; i < 3; i++) launch(w * (.22 + i * .28), h * (.18 + i * .07), 'rocket');
   for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'anaar' : 'rocket'), 140 + i * 115);
-  later(() => $('#finale').disabled = false, 2600);
+  later(() => $('#finale').disabled = false, 140 + 11 * 115 + ROCKET_BURST * 1000);
 };
 function clearSky() {
-  timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; projectiles = []; stopSounds();
+  timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; shockwaves = []; projectiles = []; stopSounds();
   if (typeof resetTosses === 'function') resetTosses();
   $('#finale').disabled = false; $('#sky-caption').style.opacity = '1';
-  sky.classList.remove('celebrating'); partyUntil = 0; clearTimeout(neighbourTimer); $('#roof-comment').classList.remove('visible');
+  sky.classList.remove('celebrating', 'shake', 'heavy-impact'); partyUntil = 0; clearTimeout(neighbourTimer); $('#roof-comment').classList.remove('visible');
   ctx.clearRect(0, 0, w, h);
 }
 $('#clear-sky').onclick = clearSky;
