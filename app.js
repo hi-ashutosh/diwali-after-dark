@@ -47,7 +47,9 @@ function prepareAudio() {
 // Recorded patakha sounds. Decoded into Web Audio when served over http(s);
 // plain <audio> playback covers index.html opened straight from disk.
 const samples = {rocket: 'assets/sounds/rocket.mp3', anaar: 'assets/sounds/fuljadi.mp3', ladi: 'assets/sounds/ladi.mp3', bomb: 'assets/sounds/bomb.mp3'};
-const ROCKET_BANG = 3.2, BOMB_BLASTS = [.4, 3.1]; // seconds into each recording where the bangs land
+// Moments (seconds) in each recording that the animation is choreographed to.
+// Rocket: launch whoosh from 0s, burst bang at 2.95s, crackle tail around 3.3–3.7s. Bomb: two bangs.
+const ROCKET_BURST = 2.95, ROCKET_CRACKLE = [3.3, 3.45, 3.6, 3.72], BOMB_BLASTS = [.3, 2.97], FOUNTAIN_LENGTH = 2, LADI_LENGTH = 2;
 const sampleBuffers = new Map(), sampleElements = new Set();
 let samplesRequested = false;
 function loadSamples() {
@@ -58,19 +60,18 @@ function loadSamples() {
       .then(data => audio.decodeAudioData(data)).then(buffer => sampleBuffers.set(kind, buffer)).catch(() => {});
   }
 }
-function playSample(kind, pan, offset = 0) {
+// Recordings always play in full, start to finish.
+function playSample(kind, pan) {
   const buffer = sampleBuffers.get(kind);
   if (buffer) {
     if (audioSources.size > 65) return;
     const source = audio.createBufferSource(), filter = audio.createGain(), gain = audio.createGain();
-    source.buffer = buffer; output(source, filter, gain, pan);
-    source.start(audio.currentTime, Math.min(offset, buffer.duration - .05));
+    source.buffer = buffer; output(source, filter, gain, pan); source.start(audio.currentTime);
     return;
   }
-  if (sampleElements.size > 12) return;
+  if (sampleElements.size > 16) return;
   const element = new Audio(samples[kind]);
   element.volume = volume; sampleElements.add(element);
-  if (offset) element.addEventListener('loadedmetadata', () => { element.currentTime = offset; }, {once: true});
   element.onended = element.onerror = () => sampleElements.delete(element);
   element.play().catch(() => sampleElements.delete(element));
 }
@@ -108,12 +109,12 @@ function tone(at, duration, from, to, level, pan, type = 'sine') {
   gain.gain.exponentialRampToValueAtTime(.001, at + duration);
   output(source, filter, gain, pan); source.start(at); source.stop(at + duration);
 }
-function soundEffect(kind, x = w / 2, offset = 0) {
+function soundEffect(kind, x = w / 2) {
   if (!sound) return;
   try {
     prepareAudio(); const t = audio.currentTime, pan = x / Math.max(w, 1) * 1.6 - .8;
     if (samples[kind]) {
-      playSample(kind, pan, offset);
+      playSample(kind, pan);
     } else if (kind === 'rocket') {
       noise(t, .7, .35, 2800, pan, true);
       tone(t + .08, .7, 650, 2600, .075, pan);
@@ -172,9 +173,12 @@ function animate(time) {
   if (!particles.length && !rockets.length && !flashes.length && !partyUntil) return;
   ctx.clearRect(0, 0, w, h);
   for (let i = rockets.length - 1; i >= 0; i--) {
-    const r = rockets[i]; r.y -= r.speed * dt;
-    for (let k = 0; k < (reduced ? 1 : 2); k++) add(r.x, r.y, (Math.random() - .5) * .5, 1 + Math.random(), k % 2 ? '#ff9e52' : '#fff3bd', 24, 1.2, .012);
-    if (r.y <= r.target) { burst(r.x, r.target, 130, undefined, true); rockets.splice(i, 1); }
+    // Clock-driven flight: a hard push during the launch whoosh, then a slow coast to the bang.
+    const r = rockets[i], progress = Math.min(1, (time - r.born) / r.flight);
+    r.y = r.ground - (r.ground - r.target) * (1 - Math.pow(1 - progress, 2.4));
+    const sparks = progress < .3 ? 3 : progress < .75 ? 2 : 1;
+    for (let k = 0; k < (reduced ? 1 : sparks); k++) add(r.x + (Math.random() - .5) * 1.5, r.y, (Math.random() - .5) * .5, .6 + Math.random() * (progress < .3 ? 2 : .8), k % 2 ? '#ff9e52' : '#fff3bd', progress < .3 ? 30 : 20, 1.2, .012);
+    if (progress >= 1) { rocketBurst(r.x, r.target); rockets.splice(i, 1); }
   }
   // Compact survivors in place: no per-spark arrays, shifts or splice allocations.
   let alive = 0;
@@ -227,6 +231,16 @@ function rooftopReaction(force = false) {
   $('#roof-comment').classList.add('visible'); clearTimeout(neighbourTimer);
   neighbourTimer = setTimeout(() => $('#roof-comment').classList.remove('visible'), 2400);
 }
+function rocketBurst(x, y) {
+  burst(x, y, 130, undefined, true);
+  // The recording's crackle tail: glittering pops scattered around the burst.
+  ROCKET_CRACKLE.forEach(at => later(() => {
+    for (let n = 0; n < (reduced ? 1 : 3); n++) {
+      const a = Math.random() * Math.PI * 2, d = 25 + Math.random() * 45;
+      burst(x + Math.cos(a) * d, y + Math.sin(a) * d + 15, reduced ? 4 : 12, '#fff8d7', true);
+    }
+  }, (at - ROCKET_BURST) * 1000));
+}
 function shakeSky() {
   if (reduced) return;
   sky.classList.remove('shake'); void sky.offsetWidth; sky.classList.add('shake');
@@ -237,17 +251,19 @@ function launch(x = w * .5, y = h * .32, type = selected) {
   $('#launch-count').textContent = `${count} patakhe · zero complaints`;
   rooftopReaction(); const ground = h - 42;
   if (type === 'rocket') {
-    const target = Math.max(32, Math.min(y, h * .57)), speed = 8.5 + Math.random() * 1.5;
-    // Skip into the recording so its bang lands on the frame the rocket bursts.
-    const flight = (ground - target) / speed * 16.67 / 1000;
-    soundEffect('rocket', x, Math.max(0, ROCKET_BANG - flight)); rockets.push({x, y: ground, target, speed});
+    // The full recording plays; the rocket rises through the whoosh and bursts on its bang.
+    soundEffect('rocket', x);
+    rockets.push({x, y: ground, ground, target: Math.max(32, Math.min(y, h * .57)), born: performance.now(), flight: ROCKET_BURST * 1000});
   } else if (type === 'bomb') {
     soundEffect('bomb', x);
-    for (let k = 0; k < 9; k++) later(() => {
-      for (let i = 0; i < (reduced ? 1 : 4); i++) add(x, ground - 4, (Math.random() - .5) * 2.4, -1 - Math.random() * 2, Math.random() > .4 ? '#ffd17e' : '#fff6c6', 18 + Math.random() * 12, 1.2, .06);
-    }, k * 40);
+    const second = Math.max(30, Math.min(w - 30, x + (Math.random() > .5 ? 36 : -36)));
+    const fuse = (fx, from, to) => { for (let t = from; t < to; t += 40) later(() => {
+      for (let i = 0; i < (reduced ? 1 : 4); i++) add(fx, ground - 4, (Math.random() - .5) * 2.4, -1 - Math.random() * 2, Math.random() > .4 ? '#ffd17e' : '#fff6c6', 18 + Math.random() * 12, 1.2, .06);
+    }, t); };
+    // Each bomb's fuse fizzes right up to its bang in the recording.
+    fuse(x, 0, BOMB_BLASTS[0] * 1000); fuse(second, BOMB_BLASTS[1] * 1000 - 900, BOMB_BLASTS[1] * 1000);
     BOMB_BLASTS.forEach((at, n) => later(() => {
-      const bx = n ? Math.max(30, Math.min(w - 30, x + (Math.random() > .5 ? 36 : -36))) : x;
+      const bx = n ? second : x;
       flashes.push({x: bx, y: ground - 20, life: reduced ? 0 : 14, size: 200, color: '#fff1c1'});
       burst(bx, ground - 22, 150, n ? '#ffd17e' : '#ff8668', true);
       for (let i = 0; i < (reduced ? 6 : 36); i++) {
@@ -258,8 +274,10 @@ function launch(x = w * .5, y = h * .32, type = selected) {
     }, at * 1000));
   } else if (type === 'anaar') {
     soundEffect('anaar', x);
-    for (let k = 0; k < 42; k++) later(() => {
-      const strength = Math.sin(Math.PI * (k + 3) / 46);
+    // The fountain sprays for exactly as long as the fuljadi recording.
+    const ticks = Math.round(FOUNTAIN_LENGTH * 1000 / 43);
+    for (let k = 0; k < ticks; k++) later(() => {
+      const strength = Math.sin(Math.PI * (k + 3) / (ticks + 4));
       for (let i = 0; i < (reduced ? 2 : 6); i++) {
         const a = -Math.PI / 2 + (Math.random() - .5) * .7, speed = (2.5 + Math.random() * 4.2) * strength;
         add(x, ground, Math.cos(a) * speed, Math.sin(a) * speed, Math.random() > .3 ? '#ffcb70' : '#fff6c6', 52 + Math.random() * 28, 1.3, .075);
@@ -277,12 +295,13 @@ function launch(x = w * .5, y = h * .32, type = selected) {
       if (k % 10 === 0) smoke(cx, ground, 1);
     }, k * 30);
   } else {
-    // One ladi recording (2s) covers the whole string of pops.
+    // The string of pops runs for exactly as long as the ladi recording.
     soundEffect('ladi', x);
-    for (let k = 0; k < 30; k++) later(() => {
-      const cx = Math.max(20, Math.min(w - 20, x + (k - 15) * 6));
+    const pops = Math.round(LADI_LENGTH * 1000 / 64);
+    for (let k = 0; k < pops; k++) later(() => {
+      const cx = Math.max(20, Math.min(w - 20, x + (k - pops / 2) * 6));
       burst(cx, ground - Math.random() * 7, reduced ? 8 : 26, k % 2 ? '#ffd17e' : '#ff8668', true);
-    }, k * 64 + Math.random() * 30);
+    }, k * (LADI_LENGTH * 1000 - 40) / pops + Math.random() * 30);
   }
   if ([10, 25, 50, 100].includes(count)) toast(`${count} patakhe! Society committee ne emergency meeting bula li.`);
 }
@@ -315,7 +334,7 @@ $('#finale').onclick = () => {
   // An immediate first volley, then a compact crescendo with only one fountain.
   for (let i = 0; i < 3; i++) launch(w * (.22 + i * .28), h * (.18 + i * .07), 'rocket');
   for (let i = 0; i < 12; i++) later(() => launch(w * (.12 + Math.random() * .76), h * (.14 + Math.random() * .29), i === 5 ? 'anaar' : 'rocket'), 140 + i * 115);
-  later(() => $('#finale').disabled = false, 2600);
+  later(() => $('#finale').disabled = false, 140 + 11 * 115 + ROCKET_BURST * 1000);
 };
 function clearSky() {
   timers.forEach(clearTimeout); timers.clear(); particles = []; rockets = []; flashes = []; stopSounds();
